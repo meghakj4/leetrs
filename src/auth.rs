@@ -178,7 +178,10 @@ mod tests {
         };
         let json = serde_json::to_string(&creds).unwrap();
         // Field names must match what the file on disk will look like.
-        assert!(json.contains("session_cookie"), "missing 'session_cookie' key");
+        assert!(
+            json.contains("session_cookie"),
+            "missing 'session_cookie' key"
+        );
         assert!(json.contains("csrf_token"), "missing 'csrf_token' key");
     }
 

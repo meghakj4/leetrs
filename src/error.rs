@@ -52,8 +52,14 @@ mod tests {
     fn error_graphql_display_includes_message() {
         let e = EngineError::GraphQL("something went wrong".to_string());
         let msg = e.to_string();
-        assert!(msg.contains("GraphQL error"), "expected 'GraphQL error' in: {msg}");
-        assert!(msg.contains("something went wrong"), "expected context in: {msg}");
+        assert!(
+            msg.contains("GraphQL error"),
+            "expected 'GraphQL error' in: {msg}"
+        );
+        assert!(
+            msg.contains("something went wrong"),
+            "expected context in: {msg}"
+        );
     }
 
     #[test]
