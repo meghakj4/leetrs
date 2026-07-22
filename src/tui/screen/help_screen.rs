@@ -48,6 +48,12 @@ impl Screen for HelpScreen {
                 help_area.width,
             ),
             create_split_item(
+                "t",
+                "Open topic-filter overlay (multi-select)",
+                Color::Green,
+                help_area.width,
+            ),
+            create_split_item(
                 "j / k or ↓ / ↑",
                 "Move selection down / up",
                 Color::Green,
