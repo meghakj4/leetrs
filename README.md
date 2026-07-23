@@ -103,6 +103,25 @@ leetrs --version
 ```
 
 ---
+# Config
+
+The `leetrs` configuration file uses the **TOML** format and allows you to set your default programming language, preferred text editor, and description display preferences.
+
+## Config File Location
+
+Depending on your operating system, the configuration file (`config.toml`) is stored in the standard user configuration directory:
+
+* **Linux / macOS:** `~/.config/leetrs/config.toml`
+* **Windows:** `%APPDATA%\\leetrs\\config.toml` (e.g., `C:\\Users\\<Username>\\AppData\\Roaming\\leetrs\\config.toml`)
+
+---
+
+## Example Configuration
+
+```toml
+language = "python3"
+show_description = true
+```
 
 ## ⚡ Quick Start
 
