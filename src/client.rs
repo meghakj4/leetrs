@@ -13,6 +13,82 @@ use reqwest::Client;
 use reqwest::header::{COOKIE, HeaderMap, HeaderValue, USER_AGENT};
 use serde_json::json;
 
+/// Implemented by any poll-result type that has a terminal "complete" state.
+///
+/// Used by the generic [`LeetCodeClient::poll_check`] method to avoid
+/// duplicating the polling loop for test submissions and full submissions.
+trait Pollable {
+    fn is_complete(&self) -> bool;
+}
+
+impl Pollable for crate::models::TestSubmissionCheckResult {
+    fn is_complete(&self) -> bool {
+        // LeetCode's state moves from "PENDING" or "STARTED" to "SUCCESS" when done
+        self.state == "SUCCESS"
+    }
+}
+
+impl Pollable for crate::models::SubmissionCheckResult {
+    fn is_complete(&self) -> bool {
+        self.state == "SUCCESS"
+    }
+}
+
+/// Abstraction over the LeetCode HTTP/GraphQL API.
+///
+/// Implementing this trait for a mock type allows [`Picker`], [`SubmissionService`],
+/// and the TUI to be tested without hitting the real network.
+pub trait LeetCodeApi {
+    fn get_question_by_slug(
+        &self,
+        title_slug: &str,
+    ) -> impl std::future::Future<Output = Result<crate::models::Question>> + Send;
+
+    fn get_question_by_id(
+        &self,
+        id: u64,
+    ) -> impl std::future::Future<Output = Result<crate::models::Question>> + Send;
+
+    fn test_code(
+        &self,
+        title_slug: &str,
+        question_id: &str,
+        lang: &str,
+        code: &str,
+        test_cases: &str,
+    ) -> impl std::future::Future<Output = Result<String>> + Send;
+
+    fn submit_code(
+        &self,
+        title_slug: &str,
+        question_id: &str,
+        lang: &str,
+        code: &str,
+    ) -> impl std::future::Future<Output = Result<u64>> + Send;
+
+    fn check_test_submission(
+        &self,
+        interpret_id: String,
+    ) -> impl std::future::Future<Output = Result<crate::models::TestSubmissionCheckResult>> + Send;
+
+    fn check_submission(
+        &self,
+        submission_id: u64,
+    ) -> impl std::future::Future<Output = Result<crate::models::SubmissionCheckResult>> + Send;
+
+    fn get_user_detail(
+        &self,
+    ) -> impl std::future::Future<Output = Result<crate::models::UserDetail>> + Send;
+
+    fn get_topics_question_list(
+        &self,
+    ) -> impl std::future::Future<Output = Result<Vec<crate::models::QuestionTopics>>> + Send;
+
+    fn get_problem_list(
+        &self,
+    ) -> impl std::future::Future<Output = Result<Vec<crate::models::ProblemSummary>>> + Send;
+}
+
 /// A configured `reqwest` HTTP client that authenticates every request with
 /// the user's LeetCode session cookies and CSRF token.
 ///
@@ -267,27 +343,7 @@ impl LeetCodeClient {
             "https://leetcode.com/submissions/detail/{}/check/",
             interpret_id
         );
-
-        loop {
-            let response = self.http_client.get(&url).send().await?;
-
-            if !response.status().is_success() {
-                return Err(EngineError::GraphQL(format!(
-                    "Check failed: {}",
-                    response.status()
-                )));
-            }
-
-            let result: TestSubmissionCheckResult = response.json().await?;
-
-            // LeetCode's state moves from "PENDING" or "STARTED" to "SUCCESS" when execution finishes
-            if result.state == "SUCCESS" {
-                return Ok(result);
-            }
-
-            // Sleep for 1.5 seconds before polling again to avoid hitting rate limits
-            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-        }
+        self.poll_check(&url).await
     }
 
     /// Poll the submission status until it completes
@@ -296,9 +352,16 @@ impl LeetCodeClient {
             "https://leetcode.com/submissions/detail/{}/check/",
             submission_id
         );
+        self.poll_check(&url).await
+    }
 
+    /// Generic polling loop shared by [`check_test_submission`] and [`check_submission`].
+    ///
+    /// Keeps sending GET requests to `url` every 1.5 s until the response
+    /// deserialises to a type that reports [`Pollable::is_complete`] as `true`.
+    async fn poll_check<T: serde::de::DeserializeOwned + Pollable>(&self, url: &str) -> Result<T> {
         loop {
-            let response = self.http_client.get(&url).send().await?;
+            let response = self.http_client.get(url).send().await?;
 
             if !response.status().is_success() {
                 return Err(EngineError::GraphQL(format!(
@@ -307,10 +370,9 @@ impl LeetCodeClient {
                 )));
             }
 
-            let result: SubmissionCheckResult = response.json().await?;
+            let result: T = response.json().await?;
 
-            // LeetCode's state moves from "PENDING" or "STARTED" to "SUCCESS" when execution finishes
-            if result.state == "SUCCESS" {
+            if result.is_complete() {
                 return Ok(result);
             }
 
@@ -475,5 +537,80 @@ impl LeetCodeClient {
         Err(EngineError::Other(
             "Error retrieving problem list".to_string(),
         ))
+    }
+}
+
+/// Blanket [`LeetCodeApi`] implementation for the concrete HTTP client.
+///
+/// Each method simply forwards to the same method on [`LeetCodeClient`], so
+/// there is no logic duplication — the trait is purely an abstraction seam
+/// that lets tests inject a mock without touching `reqwest`.
+impl LeetCodeApi for LeetCodeClient {
+    fn get_question_by_slug(
+        &self,
+        title_slug: &str,
+    ) -> impl std::future::Future<Output = Result<crate::models::Question>> + Send {
+        LeetCodeClient::get_question_by_slug(self, title_slug)
+    }
+
+    fn get_question_by_id(
+        &self,
+        id: u64,
+    ) -> impl std::future::Future<Output = Result<crate::models::Question>> + Send {
+        LeetCodeClient::get_question_by_id(self, id)
+    }
+
+    fn test_code(
+        &self,
+        title_slug: &str,
+        question_id: &str,
+        lang: &str,
+        code: &str,
+        test_cases: &str,
+    ) -> impl std::future::Future<Output = Result<String>> + Send {
+        LeetCodeClient::test_code(self, title_slug, question_id, lang, code, test_cases)
+    }
+
+    fn submit_code(
+        &self,
+        title_slug: &str,
+        question_id: &str,
+        lang: &str,
+        code: &str,
+    ) -> impl std::future::Future<Output = Result<u64>> + Send {
+        LeetCodeClient::submit_code(self, title_slug, question_id, lang, code)
+    }
+
+    fn check_test_submission(
+        &self,
+        interpret_id: String,
+    ) -> impl std::future::Future<Output = Result<crate::models::TestSubmissionCheckResult>> + Send
+    {
+        LeetCodeClient::check_test_submission(self, interpret_id)
+    }
+
+    fn check_submission(
+        &self,
+        submission_id: u64,
+    ) -> impl std::future::Future<Output = Result<crate::models::SubmissionCheckResult>> + Send {
+        LeetCodeClient::check_submission(self, submission_id)
+    }
+
+    fn get_user_detail(
+        &self,
+    ) -> impl std::future::Future<Output = Result<crate::models::UserDetail>> + Send {
+        LeetCodeClient::get_user_detail(self)
+    }
+
+    fn get_topics_question_list(
+        &self,
+    ) -> impl std::future::Future<Output = Result<Vec<crate::models::QuestionTopics>>> + Send {
+        LeetCodeClient::get_topics_question_list(self)
+    }
+
+    fn get_problem_list(
+        &self,
+    ) -> impl std::future::Future<Output = Result<Vec<crate::models::ProblemSummary>>> + Send {
+        LeetCodeClient::get_problem_list(self)
     }
 }
