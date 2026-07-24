@@ -3,8 +3,10 @@
 //! Provides the interactive problem browser. The top-level entry point is
 //! [`run_tui`], which owns the terminal setup/teardown and re-opens the TUI
 //! after Neovim closes so the user can pick another problem without restarting.
+pub mod renderers;
 pub mod screen;
 mod utils;
+pub mod widgets;
 
 use crate::config::CONFIG;
 use crate::tui::screen::selection_screen::{InputMode, SelectionScreen};
@@ -58,6 +60,8 @@ pub enum Action {
     Select(String),
     /// Display a one-shot modal popup with the given message.
     ShowMessage(String),
+    /// Dismiss the currently active popup.
+    DismissPopup,
     /// Open the given URL in the system browser.
     Open(String),
 }
@@ -89,6 +93,39 @@ impl App {
     }
 }
 
+/// RAII guard for the terminal alternate screen / raw mode.
+///
+/// Entering the terminal and restoring it are always done as a pair. This
+/// guard ensures the cleanup code runs even if the TUI panics mid-session,
+/// preventing the user's shell from being left in raw mode.
+struct TerminalGuard {
+    terminal: Terminal<CrosstermBackend<io::Stdout>>,
+}
+
+impl TerminalGuard {
+    fn enter() -> anyhow::Result<Self> {
+        enable_raw_mode().map_err(anyhow::Error::from)?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen).map_err(anyhow::Error::from)?;
+        let backend = CrosstermBackend::new(stdout);
+        let terminal = Terminal::new(backend)?;
+        Ok(Self { terminal })
+    }
+
+    fn terminal_mut(&mut self) -> &mut Terminal<CrosstermBackend<io::Stdout>> {
+        &mut self.terminal
+    }
+}
+
+impl Drop for TerminalGuard {
+    fn drop(&mut self) {
+        // Best-effort restoration — ignore errors during panic unwinding.
+        let _ = disable_raw_mode();
+        let _ = execute!(self.terminal.backend_mut(), LeaveAlternateScreen);
+        let _ = self.terminal.show_cursor();
+    }
+}
+
 /// The main entry point for the TUI
 /// Initialises [`App`], then enters the TUI event loop.
 ///
@@ -103,17 +140,10 @@ pub async fn run_tui(
 ) -> anyhow::Result<()> {
     let mut app = App::new(problems, user_detail);
     let _result = loop {
-        enable_raw_mode().map_err(anyhow::Error::from)?;
-        let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen).map_err(anyhow::Error::from)?;
-        let backend = CrosstermBackend::new(stdout);
-        let mut terminal = Terminal::new(backend)?;
-
-        let result = run_app(&mut terminal, &mut app).await;
-
-        disable_raw_mode().map_err(anyhow::Error::from)?;
-        execute!(terminal.backend_mut(), LeaveAlternateScreen).map_err(anyhow::Error::from)?;
-        terminal.show_cursor().map_err(anyhow::Error::from)?;
+        let mut guard = TerminalGuard::enter()?;
+        let result = run_app(guard.terminal_mut(), &mut app).await;
+        // Guard drops here, restoring the terminal
+        drop(guard);
 
         match result {
             Ok(Some(problem)) => {
@@ -194,6 +224,9 @@ async fn run_app<B: Backend>(
                                 Action::ShowMessage(msg) => {
                                     app.popup_message = Some(msg);
                                     app.should_quit = false;
+                                }
+                                Action::DismissPopup => {
+                                    app.popup_message = None;
                                 }
                                 Action::Open(url) => {
                                     let _ = open::that(url);
