@@ -19,8 +19,17 @@ pub enum EngineError {
     GraphQL(String),
     #[error("System error")]
     System,
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
     #[error("Other: {0}")]
     Other(String),
+}
+
+impl EngineError {
+    /// Wraps this error with additional context, producing an [`EngineError::Other`].
+    pub fn with_context(self, msg: impl Into<String>) -> Self {
+        EngineError::Other(format!("{}: {}", msg.into(), self))
+    }
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
