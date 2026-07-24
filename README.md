@@ -17,6 +17,11 @@ https://github.com/user-attachments/assets/86783e7e-afc6-449a-828b-c29e34fa9dbb
 
 ## ✨ Features
 
+* **Interactive TUI Browser (`leetrs tui` / `leetrs`)**
+  * Search problems instantly using fuzzy matching.
+  * Filter list by difficulty level (Easy, Medium, Hard) or topic overlays.
+  * Visual indications of solved status, subscription locks, and premium gates.
+  * Easily toggle help popups or open selected problems directly in your system browser.
 * **Intelligent Authentication (`leetrs auth`)**
   * Automatically extracts `LEETCODE_SESSION` and `csrftoken` cookies from your active Chrome or Firefox sessions.
   * Secure, hidden manual fallback for containerized browser profiles.
@@ -27,10 +32,18 @@ https://github.com/user-attachments/assets/86783e7e-afc6-449a-828b-c29e34fa9dbb
 * **Native Neovim Integration**
   * Instantly hijacks the terminal process to launch Neovim.
   * Forces a clean vertical split (`vsplit`) to place your problem description and code side-by-side, bypassing layout quirks from custom dashboards.
-* **Async Submission Engine (`leetrs submit`)**
+* **Async Submission & Test Engine (`leetrs submit` / `leetrs test`)**
   * Submit your local file directly to LeetCode's execution servers.
-  * Automatic ID resolution and CSRF token bypass.
+  * Run code against sample test cases locally without submitting officially.
   * Color-coded terminal output for execution results, including Runtime/Memory statistics and detailed compiler error logs.
+
+## 🔧 Prerequisites (all methods)
+
+| Requirement | Version | Notes |
+|---|---|---|
+| [Neovim](https://neovim.io/) | 0.9+ | Must be available as `nvim` in `$PATH` |
+| LeetCode account | — | Required for auth & submission |
+| Chrome or Firefox | Any | Used for automatic cookie extraction |
 
 ---
 
@@ -103,23 +116,30 @@ leetrs --version
 ```
 
 ---
-# Config
+## ⚙️ Configuration
 
-The `leetrs` configuration file uses the **TOML** format and allows you to set your default programming language, preferred text editor, and description display preferences.
+The `leetrs` configuration file uses the **TOML** format and allows you to customize your workflow.
 
-## Config File Location
+### Config File Location
 
 Depending on your operating system, the configuration file (`config.toml`) is stored in the standard user configuration directory:
 
 * **Linux / macOS:** `~/.config/leetrs/config.toml`
-* **Windows:** `%APPDATA%\\leetrs\\config.toml` (e.g., `C:\\Users\\<Username>\\AppData\\Roaming\\leetrs\\config.toml`)
+* **Windows:** `%APPDATA%\leetrs\config.toml` (e.g., `C:\Users\<Username>\AppData\Roaming\leetrs\config.toml`)
 
----
+### Configuration Options
 
-## Example Configuration
+* **`editor`** (string, default: `"nvim"`): The editor command to launch when picking a problem. 
+  * Use `"nvim"` or `"vim"` for a side-by-side terminal vertical split of description and code.
+  * Use `"code"` to open the files in Visual Studio Code (ensure the `code` CLI tool is in your `$PATH`).
+* **`language`** (string, default: `"python3"`): Default programming language (e.g., `"rust"`, `"python3"`, `"pythondata"`, `"mysql"`, `"postgresql"`).
+* **`show_description`** (boolean, default: `true`): Whether to open the problem description alongside the code template.
+
+### Example Configuration
 
 ```toml
-language = "python3"
+editor = "code"
+language = "rust"
 show_description = true
 ```
 
@@ -129,27 +149,23 @@ show_description = true
 # 1. Authenticate with your LeetCode session
 leetrs auth
 
-# 2. Pick a problem (by slug or numeric ID)
+# 2. Launch the interactive TUI problem browser
+leetrs tui
+# or simply:
+leetrs
+
+# 3. (Optional) Directly pick a problem by slug or numeric ID
 leetrs pick two-sum
 leetrs pick 1
 
-# 3. Open it in Neovim — the problem description opens in a vertical split automatically
+# 4. Open it in Neovim — the problem description opens in a vertical split automatically
 
-# 4. Solve it, then submit
+# 5. Solve the problem, then test or submit it
+leetrs test two_sum.rs
 leetrs submit two_sum.rs
 ```
 
----
 
-## 🔧 Prerequisites (all methods)
-
-| Requirement | Version | Notes |
-|---|---|---|
-| [Neovim](https://neovim.io/) | 0.9+ | Must be available as `nvim` in `$PATH` |
-| LeetCode account | — | Required for auth & submission |
-| Chrome or Firefox | Any | Used for automatic cookie extraction |
-
----
 
 ## 🤝 Contributing
 
