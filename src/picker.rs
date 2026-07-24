@@ -3,12 +3,15 @@
 //! [`Picker`] is the main orchestrator used by both the CLI commands (`pick`,
 //! `submit`, `test`) and the TUI. It wraps [`LeetCodeClient`] and adds local
 //! file I/O and a disk cache for the problem list.
+use crate::cache::CacheService;
 use crate::config::CONFIG;
 use crate::error::EngineError;
+use crate::format::format_result;
 use crate::models::{Identifier, ProblemSummary, UserDetail};
+use crate::services::submission::SubmissionService;
 use crate::{client::LeetCodeClient, models::Language};
 use std::path::Path;
-use std::{fs, process};
+use std::fs;
 
 /// Orchestrates problem fetching, file generation, submission, and caching.
 ///
@@ -22,34 +25,6 @@ pub struct Picker {
 impl Picker {
     pub fn new(client: LeetCodeClient) -> Self {
         Picker { client }
-    }
-
-    /// Returns the path to `data.json` (the cached problem list) inside the
-    /// OS-standard data directory, creating it if it doesn't already exist.
-    pub fn get_data_path() -> String {
-        let project_dirs = directories::ProjectDirs::from("com", "shadowmkj", "leetrs").unwrap();
-        let data_dir = project_dirs.data_dir();
-        if !data_dir.exists()
-            && let Err(e) = fs::create_dir_all(data_dir)
-        {
-            eprintln!("❌ Failed to create data directory: {}", e);
-            process::exit(1);
-        }
-        data_dir.join("data.json").to_str().unwrap().to_string()
-    }
-
-    /// Returns the path to `user.json` (the cached user profile) inside the
-    /// OS-standard data directory, creating it if it doesn't already exist.
-    pub fn get_user_data_path() -> String {
-        let project_dirs = directories::ProjectDirs::from("com", "shadowmkj", "leetrs").unwrap();
-        let data_dir = project_dirs.data_dir();
-        if !data_dir.exists()
-            && let Err(e) = fs::create_dir_all(data_dir)
-        {
-            eprintln!("❌ Failed to create data directory: {}", e);
-            process::exit(1);
-        }
-        data_dir.join("user.json").to_str().unwrap().to_string()
     }
 
     /// Resolves a problem by [`Identifier`], writes the Markdown description
@@ -82,11 +57,7 @@ impl Picker {
         // else open the file with matching slug.
         if let Identifier::String(ident) = identifier {
             let snake_slug = ident.replace("-", "_");
-            let code_filename = match language {
-                Language::Python | Language::Pandas => format!("{}.py", snake_slug),
-                Language::Rust => format!("{}.rs", snake_slug),
-                Language::Mysql | Language::Postgres => format!("{}.sql", snake_slug),
-            };
+            let code_filename = format!("{}.{}", snake_slug, language.code_extension());
             let desc_filename = format!("{}.md", snake_slug);
             if Path::new(&code_filename).exists() && Path::new(&desc_filename).exists() {
                 return Ok((code_filename, desc_filename));
@@ -127,41 +98,16 @@ impl Picker {
 
         //  determine filenames (converting kebab-case to snake_case)
         let snake_slug = question.title_slug.replace("-", "_");
-        let code_filename = match language {
-            Language::Rust => format!("{}.rs", snake_slug),
-            Language::Python | Language::Pandas => format!("{}.py", snake_slug),
-            Language::Mysql | Language::Postgres => format!("{}.sql", snake_slug),
-        };
+        let code_filename = format!("{}.{}", snake_slug, language.code_extension());
         let desc_filename = format!("{}.md", snake_slug);
 
-        let meta = match language {
-            Language::Python | Language::Pandas => {
-                format!(
-                    "# id={} slug={} lang={}",
-                    question.question_id,
-                    question.title_slug,
-                    language.to_lang_slug()
-                )
-            }
-            Language::Rust => format!(
-                "// id={} slug={} lang={}",
-                question.question_id,
-                question.title_slug,
-                language.to_lang_slug()
-            ),
-            Language::Mysql => format!(
-                "# id={} slug={} lang={}",
-                question.question_id,
-                question.title_slug,
-                language.to_lang_slug()
-            ),
-            Language::Postgres => format!(
-                "-- id={} slug={} lang={}",
-                question.question_id,
-                question.title_slug,
-                language.to_lang_slug()
-            ),
-        };
+        let meta = format!(
+            "{} id={} slug={} lang={}",
+            language.meta_comment_prefix(),
+            question.question_id,
+            question.title_slug,
+            language.to_lang_slug()
+        );
 
         if let Err(e) = fs::write(&code_filename, format!("{}\n\n{}", meta, snippet.code)) {
             eprintln!("❌ failed to write code file: {}", e);
@@ -179,225 +125,20 @@ impl Picker {
     /// Runs the solution file against the problem's built-in example test cases
     /// and prints the result, but **does not** record it as an official submission.
     pub async fn test_submit(&self, file: &String) {
-        let code = match std::fs::read_to_string(file) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("❌ Failed to read file '{}': {}", file, e);
-                return;
-            }
-        };
-
-        // Extract the slug from the filename (e.g., "two_sum.rs" -> "two-sum")
-        let path = std::path::Path::new(&file);
-        let file_stem = path
-            .file_stem()
-            .unwrap_or_default()
-            .to_str()
-            .unwrap_or_default();
-        let slug = file_stem.replace("_", "-");
-        println!("🔍 Resolving ID for '{}'...", slug);
-        let language = Language::from_extension(
-            path.extension()
-                .and_then(|s| s.to_str())
-                .unwrap_or_default(),
-        );
-
-        let question = match self.client.get_question_by_slug(&slug).await {
-            Ok(q) => q,
-            Err(e) => {
-                eprintln!(
-                    "❌ Failed to fetch question ID. Does the filename match the problem slug? Error: {}",
-                    e
-                );
-                return;
-            }
-        };
-
-        println!("🚀 Submitting {}...", file);
-        let interpret_id = match self
-            .client
-            .test_code(
-                &slug,
-                &question.question_id,
-                language.to_lang_slug(),
-                &code,
-                &question.example_test_cases,
-            )
-            .await
-        {
-            Ok(id) => id,
-            Err(e) => {
-                eprintln!("❌ Test Submission failed: {}", e);
-                return;
-            }
-        };
-
-        println!("⏳ Code queued. Waiting for execution results...");
-        let result = match self.client.check_test_submission(interpret_id).await {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("❌ Failed to check test submission status: {}", e);
-                return;
-            }
-        };
-
-        println!("\n==================================================");
-
-        let status = result.correct_answer.unwrap_or(false);
-
-        if status {
-            println!("  ✅ All test cases passed");
-        } else {
-            println!("  ❌ Test Failed");
-        }
-
-        println!("==================================================\n");
-
-        if let (Some(correct), Some(total)) = (result.total_correct, result.total_testcases) {
-            println!("🧪 Testcases: {} / {} passed", correct, total);
-        }
-
-        let status_msg = result.status_msg.unwrap_or("Unknown".to_string());
-        if status && status_msg == "Accepted" {
-            if let Some(runtime) = result.status_runtime {
-                println!("⏱️ Runtime: {}", runtime);
-            }
-            if let Some(memory) = result.status_memory {
-                println!("💾 Memory: {}", memory);
-            }
-            if let Some(memory_percentile) = result.memory_percentile {
-                println!("📝 Memory Percentile: {:.2}%", memory_percentile);
-            }
-            if let Some(runtime_percentile) = result.runtime_percentile {
-                println!("⏰ Runtime Percentile: {:.2}%", runtime_percentile);
-            }
-        } else if status_msg == "Accepted" {
-            if let (Some(code_answers), Some(expected)) = (
-                result.code_answer.as_ref(),
-                result.expected_code_answer.as_ref(),
-            ) {
-                println!("Expected");
-                println!("{}", expected.join("\t"));
-                println!("Output");
-                println!("{}", code_answers.join("\t"));
-            }
-        } else if status_msg == "Runtime Error"
-            && let Some(runtime_error) = result.full_runtime_error
-        {
-            println!("❌ Error\n{}", runtime_error);
+        let service = SubmissionService::new(self.client.clone());
+        match service.submit_or_test(file, true).await {
+            Ok(result) => format_result(&result),
+            Err(e) => eprintln!("❌ {}", e),
         }
     }
 
     /// Submits the solution file to LeetCode for full judging and prints the
     /// verdict, test-case counts, and performance percentiles.
     pub async fn submit(&self, file: &String) {
-        let code = match std::fs::read_to_string(file) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("❌ Failed to read file '{}': {}", file, e);
-                return;
-            }
-        };
-
-        // Extract the slug from the filename (e.g., "two_sum.rs" -> "two-sum")
-        let path = std::path::Path::new(&file);
-        let file_stem = path
-            .file_stem()
-            .unwrap_or_default()
-            .to_str()
-            .unwrap_or_default();
-        let slug = file_stem.replace("_", "-");
-        println!("🔍 Resolving ID for '{}'...", slug);
-        let language = Language::from_extension(
-            path.extension()
-                .and_then(|s| s.to_str())
-                .unwrap_or_default(),
-        );
-
-        let question = match self.client.get_question_by_slug(&slug).await {
-            Ok(q) => q,
-            Err(e) => {
-                eprintln!(
-                    "❌ Failed to fetch question ID. Does the filename match the problem slug? Error: {}",
-                    e
-                );
-                return;
-            }
-        };
-
-        println!("🚀 Submitting {}...", file);
-        let submission_id = match self
-            .client
-            .submit_code(&slug, &question.question_id, language.to_lang_slug(), &code)
-            .await
-        {
-            Ok(id) => id,
-            Err(e) => {
-                eprintln!("❌ Submission failed: {}", e);
-                return;
-            }
-        };
-
-        println!("⏳ Code queued. Waiting for execution results...");
-        let result = match self.client.check_submission(submission_id).await {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("❌ Failed to check submission status: {}", e);
-                return;
-            }
-        };
-
-        println!("\n==================================================");
-
-        let status = result.status_msg.unwrap_or_else(|| "Unknown".to_string());
-
-        if status == "Accepted" {
-            println!("  ✅ {}", status);
-        } else {
-            println!("  ❌ {}", status);
-        }
-
-        println!("==================================================\n");
-
-        if let (Some(correct), Some(total)) = (result.total_correct, result.total_testcases) {
-            println!("🧪 Testcases: {} / {} passed", correct, total);
-        }
-
-        if status == "Accepted" {
-            if let Some(runtime) = result.status_runtime {
-                println!("⏱️ Runtime: {}", runtime);
-            }
-            if let Some(memory) = result.status_memory {
-                println!("💾 Memory: {}", memory);
-            }
-            if let Some(memory_percentile) = result.memory_percentile {
-                println!("📝 Memory Percentile: {:.2}%", memory_percentile);
-            }
-            if let Some(runtime_percentile) = result.runtime_percentile {
-                println!("⏰ Runtime Percentile: {:.2}%", runtime_percentile);
-            }
-        } else if status == "Compile Error" {
-            if let Some(err_msg) = result.compile_error {
-                println!("💥 Compiler Output:\n{}", err_msg);
-            }
-        } else if status == "Wrong Answer" {
-            if let Some(input) = result.input {
-                let parts = input.split("\n");
-                print!("INPUT: ");
-                for part in parts {
-                    print!("{}\t", part);
-                }
-                println!();
-            }
-            if let Some(expected) = result.expected_output
-                && let Some(output) = result.code_output
-            {
-                println!("Expected: {}\nOutput: {}", expected, output);
-            }
-        } else if status == "Runtime Error"
-            && let Some(runtime_error) = result.full_runtime_error
-        {
-            println!("❌ Error\n{}", runtime_error);
+        let service = SubmissionService::new(self.client.clone());
+        match service.submit_or_test(file, false).await {
+            Ok(result) => format_result(&result),
+            Err(e) => eprintln!("❌ {}", e),
         }
     }
 
@@ -409,19 +150,21 @@ impl Picker {
     ///    fetches the latest data from the API and overwrites the file.
     /// 3. If not found, block on the API fetch, write the file, then return.
     pub async fn get_user_data(&self) -> crate::error::Result<UserDetail> {
-        let data = match fs::read_to_string(Picker::get_user_data_path()) {
+        let cache = CacheService::new();
+        let user_path = cache.user_path();
+        let data = match fs::read_to_string(&user_path) {
             Ok(v) => {
                 let client = self.client.clone();
+                let user_path_bg = user_path.clone();
                 tokio::spawn(async move {
                     let result: Result<(), Box<dyn std::error::Error>> = async {
                         let user_detail = client.get_user_detail().await?;
                         let data = serde_json::to_string(&user_detail)?;
-                        let _ = fs::write(Picker::get_user_data_path(), &data);
+                        let _ = fs::write(&user_path_bg, &data);
                         Ok(())
                     }
                     .await;
 
-                    // Handle any errors that occurred in the background task
                     if let Err(e) = result {
                         eprintln!("Failed to fetch/save user data in background: {}", e);
                     }
@@ -431,16 +174,14 @@ impl Picker {
             Err(_) => {
                 let user_detail = self.client.get_user_detail().await?;
                 let data = serde_json::to_string(&user_detail)?;
-                let _ = fs::write(Picker::get_user_data_path(), &data);
+                let _ = fs::write(&user_path, &data);
                 data
             }
         };
         let user_detail: UserDetail = serde_json::from_str(&data).map_err(|e| {
             eprintln!("Failed to parse user details: {}", e);
             eprintln!("Try running `leetrs tui` again to refresh the cache.");
-            // Remove the data file since it's corrupted, so the next run will fetch fresh data
-            // from the API
-            if let Err(err) = fs::remove_file(Picker::get_user_data_path()) {
+            if let Err(err) = fs::remove_file(&user_path) {
                 eprintln!("Failed to remove corrupted cache file: {}", err);
             }
             e
@@ -455,20 +196,16 @@ impl Picker {
     /// 2. If found, return it immediately and spawn a background task that
     ///    fetches a fresh list (problems + tags) and overwrites the cache.
     /// 3. If not found, block on both API calls, write the cache, then return.
-    pub async fn list_problems(&self) -> anyhow::Result<Vec<ProblemSummary>> {
-        // let user_detail = self
-        //     .client
-        //     .get_user_detail()
-        //     .await
-        //     .expect("Failed to retrieve user details");
-        // let data =
-        //     serde_json::to_string(&user_detail).expect("Failed to serialize user_detail list");
-        // fs::write(Picker::get_user_data_path(), data)
-        //     .expect("Unable to write user data json to file");
-        let data = match fs::read_to_string(Picker::get_data_path()) {
+    pub async fn list_problems(&self) -> crate::error::Result<Vec<ProblemSummary>> {
+        let cache = CacheService::new();
+        let data_path = cache.problems_path();
+        let user_path = cache.user_path();
+        let data = match fs::read_to_string(&data_path) {
             Ok(v) => {
                 // Fetch data in the background and update data.json for next time
                 let client_clone = self.client.clone();
+                let data_path_bg = data_path.clone();
+                let user_path_bg = user_path.clone();
                 tokio::spawn(async move {
                     let user_detail = client_clone
                         .get_user_detail()
@@ -476,7 +213,7 @@ impl Picker {
                         .expect("Failed to retrieve user details");
                     let data = serde_json::to_string(&user_detail)
                         .expect("Failed to serialize user_detail list");
-                    fs::write(Picker::get_user_data_path(), data)
+                    fs::write(&user_path_bg, data)
                         .expect("Unable to write user data json to file");
                     let mut problems = client_clone
                         .get_problem_list()
@@ -497,7 +234,7 @@ impl Picker {
                     }
                     let data =
                         serde_json::to_string(&problems).expect("Failed to serialize problem list");
-                    fs::write(Picker::get_data_path(), data).expect("Unable to write json to file");
+                    fs::write(&data_path_bg, data).expect("Unable to write json to file");
                 });
                 v
             }
@@ -521,16 +258,14 @@ impl Picker {
                 }
                 let data =
                     serde_json::to_string(&problems).expect("Failed to serialize problem list");
-                fs::write(Picker::get_data_path(), &data).expect("Unable to write json to file");
+                fs::write(&data_path, &data).expect("Unable to write json to file");
                 data
             }
         };
         let problems: Vec<ProblemSummary> = serde_json::from_str(&data).map_err(|e| {
             eprintln!("Failed to parse problem list: {}", e);
             eprintln!("Try running `leetrs tui` again to refresh the cache.");
-            // Remove the data file since it's corrupted, so the next run will fetch fresh data
-            // from the API
-            if let Err(err) = fs::remove_file(Picker::get_data_path()) {
+            if let Err(err) = fs::remove_file(&data_path) {
                 eprintln!("Failed to remove corrupted cache file: {}", err);
             }
             e
