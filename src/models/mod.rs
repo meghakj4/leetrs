@@ -2,229 +2,29 @@
 //!
 //! All types here are either serialised into HTTP request bodies or deserialised
 //! from API responses. Serde field renames mirror LeetCode's camelCase JSON keys.
-use clap::ValueEnum;
-use serde::{Deserialize, Serialize};
+//!
+//! # Module layout
+//!
+//! | Module | Contents |
+//! |--------|----------|
+//! | [`language`] | [`Language`] enum and [`Identifier`] |
+//! | [`problem`] | [`ProblemSummary`], [`Question`], [`UserDetail`], [`GraphQLQuery`] |
+//! | [`submission`] | Payload/response types for submit and test-run |
 
-/// A GraphQL request body sent to `https://leetcode.com/graphql`.
-#[derive(Serialize, Debug)]
-pub struct GraphQLQuery {
-    pub query: String,
-    pub variables: Option<serde_json::Value>,
-    #[serde(rename = "operationName")]
-    pub operation_name: Option<String>,
-}
+pub mod language;
+pub mod problem;
+pub mod submission;
 
-/// Supported submission languages.
-///
-/// The `ValueEnum` derive lets Clap accept these directly as CLI arguments.
-#[derive(Debug, Clone, ValueEnum)]
-pub enum Language {
-    Python,
-    Rust,
-    Pandas,
-    Mysql,
-    Postgres,
-}
-
-/// A problem identifier supplied on the command line — either a numeric ID or a slug.
-#[derive(Debug, Clone)]
-pub enum Identifier {
-    Number(u64),
-    String(String),
-}
-
-impl From<&String> for Language {
-    fn from(value: &String) -> Self {
-        match value.as_str() {
-            "python3" => Self::Python,
-            "rust" => Self::Rust,
-            "pythondata" => Self::Pandas,
-            "mysql" => Self::Mysql,
-            "postgresql" => Self::Postgres,
-            _ => Self::Mysql,
-        }
-    }
-}
-
-impl From<String> for Language {
-    fn from(value: String) -> Self {
-        match value.as_str() {
-            "python3" => Self::Python,
-            "rust" => Self::Rust,
-            "pythondata" => Self::Pandas,
-            "mysql" => Self::Mysql,
-            "postgresql" => Self::Postgres,
-            _ => Self::Mysql,
-        }
-    }
-}
-
-impl Language {
-    /// Maps a [`Language`] variant to LeetCode's internal language slug string.
-    pub fn to_lang_slug(&self) -> &'static str {
-        match self {
-            Language::Python => "python3",
-            Language::Rust => "rust",
-            Language::Mysql => "mysql",
-            Language::Pandas => "pythondata",
-            Language::Postgres => "postgresql",
-        }
-    }
-
-    /// Infers the language from a file extension. Falls back to MySQL for unknown extensions.
-    pub fn from_extension(ext: &str) -> Self {
-        match ext {
-            "py" => Language::Python,
-            "rs" => Language::Rust,
-            "sql" => Language::Mysql,
-            _ => Language::Mysql,
-        }
-    }
-}
-
-/// A single code snippet returned by LeetCode's GraphQL API for one language.
-#[derive(Deserialize, Debug)]
-pub struct QuestionSnippet {
-    #[serde(rename = "langSlug")]
-    pub lang_slug: String,
-    pub code: String,
-}
-
-/// Minimal user profile returned by the `userStatus` GraphQL query.
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct UserDetail {
-    pub username: Option<String>,
-    #[serde(rename = "isPremium")]
-    pub is_premium: Option<bool>,
-    #[serde(rename = "isVerified")]
-    pub is_verified: bool,
-}
-
-/// Full problem details fetched from the `questionData` GraphQL query.
-#[derive(Deserialize, Debug)]
-pub struct Question {
-    #[serde(rename = "questionId")]
-    pub question_id: String,
-    #[serde(rename = "titleSlug")]
-    pub title_slug: String,
-    pub title: String,
-    pub content: String,
-    #[serde(rename = "exampleTestcases")]
-    pub example_test_cases: String,
-    #[serde(rename = "codeSnippets")]
-    pub code_snippets: Vec<QuestionSnippet>,
-}
-
-/// Lightweight problem summary used to populate the TUI problem list.
-///
-/// These are deserialized from the cached `data.json` file and from the
-/// `/api/problems/all/` REST endpoint.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ProblemSummary {
-    pub id: u64,
-    pub acceptance: f64,
-    pub accepted: u64,
-    /// Difficulty level: `1` = Easy, `2` = Medium, `3` = Hard.
-    pub difficulty: u8,
-    pub slug: String,
-    /// `"ac"` if solved, `"notac"` if attempted but not solved, `None` if untouched.
-    pub status: Option<String>,
-    pub submitted: u64,
-    pub title: String,
-    pub is_paid: bool,
-    pub topics: Vec<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Topic {
-    pub name: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct QuestionTopics {
-    pub name: String,
-    pub id: String,
-    pub slug: String,
-    #[serde(rename = "translatedName")]
-    pub translated_name: Option<String>,
-    #[serde(rename = "questionIds")]
-    pub question_ids: Vec<u64>,
-}
-
-// ==========================================
-// Submission Models
-// ==========================================
-
-#[derive(Serialize, Debug)]
-pub struct SubmitPayload {
-    pub lang: String,
-    pub question_id: String,
-    pub typed_code: String,
-}
-
-/// Request body sent to `/problems/{slug}/interpret_solution/` (test run).
-#[derive(Serialize, Debug)]
-pub struct TestPayload {
-    pub lang: String,
-    pub question_id: String,
-    pub typed_code: String,
-    /// The raw test-case input string used by LeetCode's judge.
-    pub data_input: String,
-}
-
-/// Response from `/interpret_solution/` — contains the ID used to poll for results.
-#[derive(Deserialize, Debug)]
-pub struct TestSubmitResponse {
-    /// Opaque ID used to poll `/submissions/detail/{interpret_id}/check/`.
-    pub interpret_id: String,
-    pub test_case: String,
-}
-
-/// Response from `/problems/{slug}/submit/` — contains the submission ID for polling.
-#[derive(Deserialize, Debug)]
-pub struct SubmitResponse {
-    pub submission_id: u64,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct TestSubmissionCheckResult {
-    pub code_answer: Option<Vec<String>>,
-    pub code_output: Option<Vec<String>>,
-    pub correct_answer: Option<bool>,
-    pub expected_code_answer: Option<Vec<String>>,
-    pub full_runtime_error: Option<String>,
-    pub lang: Option<String>,
-    pub memory_percentile: Option<f64>,
-    pub run_success: Option<bool>,
-    pub runtime_percentile: Option<f64>,
-    pub state: String,
-    pub status_memory: Option<String>,
-    pub status_msg: Option<String>,
-    pub status_runtime: Option<String>,
-    pub total_correct: Option<u32>,
-    pub total_testcases: Option<u32>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct SubmissionCheckResult {
-    pub code_output: Option<String>,
-    pub compile_error: Option<String>,
-    pub expected_output: Option<String>,
-    pub finished: Option<bool>,
-    pub full_runtime_error: Option<String>,
-    pub input: Option<String>,
-    pub input_formatted: Option<String>,
-    pub last_testcase: Option<String>,
-    pub memory_percentile: Option<f64>,
-    pub run_success: Option<bool>,
-    pub runtime_percentile: Option<f64>,
-    pub state: String, // "PENDING", "STARTED", "SUCCESS"
-    pub status_memory: Option<String>,
-    pub status_msg: Option<String>, // "Accepted", "Wrong Answer", "Compile Error"
-    pub status_runtime: Option<String>,
-    pub total_correct: Option<u32>,
-    pub total_testcases: Option<u32>,
-}
+// Re-export everything at the models level to keep all existing `use` paths
+// working without any changes in other modules.
+pub use language::{Identifier, Language};
+pub use problem::{
+    GraphQLQuery, ProblemSummary, Question, QuestionSnippet, QuestionTopics, Topic, UserDetail,
+};
+pub use submission::{
+    SubmissionCheckResult, SubmitPayload, SubmitResponse, TestPayload, TestSubmissionCheckResult,
+    TestSubmitResponse,
+};
 
 #[cfg(test)]
 mod tests {
