@@ -40,10 +40,11 @@ pub fn get_config_path() -> PathBuf {
         .expect("Failed to find directories")
         .home_dir()
         .join(".config/leetrs");
-    if !path.exists() {
-        if let Err(e) = std::fs::create_dir_all(&path) {
-            eprintln!("Failed to create config directory: {}", e);
-        }
+    if !path.exists()
+        && let Err(e) = std::fs::create_dir_all(&path)
+    {
+        eprintln!("Failed to create config directory: {}", e);
     }
+
     path
 }

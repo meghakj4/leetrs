@@ -228,26 +228,38 @@ pub async fn pick_and_open(
     preview: bool,
 ) {
     if let Ok((code, desc)) = picker.pick(identifier, language).await {
-        // 4. launch neovim with a vertical split
-        println!("🚀 launching neovim...");
         if !preview {
-            let status = Command::new("nvim")
-                .arg(&desc)
-                .arg("-c")
-                .arg(format!("vsplit {}", code)) // Force a vertical split with the code file
-                .status();
+            let config = CONFIG.get().expect("Failed to initialise config");
+            let editor = config.editor.as_deref().unwrap_or("nvim");
+            let show_description = config.show_description.unwrap_or(true);
+
+            println!("🚀 launching {}...", editor);
+
+            let status = if show_description {
+                if editor.contains("nvim") || editor.contains("vim") {
+                    Command::new(editor)
+                        .arg(&desc)
+                        .arg("-c")
+                        .arg(format!("vsplit {}", code))
+                        .status()
+                } else {
+                    Command::new(editor).arg(&desc).arg(&code).status()
+                }
+            } else {
+                Command::new(editor).arg(&code).status()
+            };
 
             match status {
                 Ok(exit_status) if exit_status.success() => {
-                    println!("\n👋 neovim closed.");
+                    println!("\n👋 {} closed.", editor);
                 }
                 Ok(exit_status) => {
-                    eprintln!("⚠️ neovim exited with an error code: {}", exit_status);
+                    eprintln!("⚠️ {} exited with an error code: {}", editor, exit_status);
                 }
                 Err(e) => {
                     eprintln!(
-                        "❌ failed to launch neovim. is it installed and in your path? error: {}",
-                        e
+                        "❌ failed to launch {}. is it installed and in your path? error: {}",
+                        editor, e
                     );
                 }
             }

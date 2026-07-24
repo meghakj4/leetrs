@@ -319,30 +319,29 @@ impl Screen for SelectionScreen {
             return self.handle_topic_filter_key(key_event);
         }
 
-        if let KeyCode::Enter = key_event.code {
-            if let Some(i) = self.table_state.selected()
-                && !self.filtered_problems.is_empty()
-            {
-                let index = self.filtered_problems[i];
-                let selected_problem = &self.all_problems[index];
-                if let Some(user) = &self.user_detail {
-                    if let Some(is_premium) = user.is_premium
-                        && selected_problem.is_paid
-                        && !is_premium
-                    {
-                        return Some(Action::ShowMessage(
-                            "This problem is premium. please subscribe to access it.".to_string(),
-                        ));
-                    }
-                } else if selected_problem.is_paid {
+        if let KeyCode::Enter = key_event.code
+            && let Some(i) = self.table_state.selected()
+            && !self.filtered_problems.is_empty()
+        {
+            let index = self.filtered_problems[i];
+            let selected_problem = &self.all_problems[index];
+            if let Some(user) = &self.user_detail {
+                if let Some(is_premium) = user.is_premium
+                    && selected_problem.is_paid
+                    && !is_premium
+                {
                     return Some(Action::ShowMessage(
-                        "This problem is premium. please login to access it. (use `leetrs auth`"
-                            .to_string(),
+                        "This problem is premium. please subscribe to access it.".to_string(),
                     ));
                 }
-
-                return Some(Action::Select(self.all_problems[index].slug.clone()));
+            } else if selected_problem.is_paid {
+                return Some(Action::ShowMessage(
+                    "This problem is premium. please login to access it. (use `leetrs auth`"
+                        .to_string(),
+                ));
             }
+
+            return Some(Action::Select(self.all_problems[index].slug.clone()));
         }
 
         match self.input_mode {
@@ -493,11 +492,12 @@ impl SelectionScreen {
         let query = self.input.value();
         let has_topics = !self.topic_filter.selected_topics.is_empty();
 
+        // Pre-allocate to avoid allocations during loop
         let candidates = self.all_problems.iter().enumerate().filter(|(_, p)| {
-            if let Some(diff) = self.difficulty_filter {
-                if p.difficulty != diff {
-                    return false;
-                }
+            if let Some(diff) = self.difficulty_filter
+                && p.difficulty != diff
+            {
+                return false;
             }
 
             if has_topics {
@@ -521,6 +521,7 @@ impl SelectionScreen {
             let mut scored: Vec<(i64, usize)> = Vec::with_capacity(self.all_problems.len());
 
             for (idx, p) in candidates {
+                // Avoid `format!("{} {}", p.title, p.id)` allocation by matching title & id separately or sequentially
                 if let Some(score) = matcher
                     .fuzzy_match(&p.title, query)
                     .or_else(|| matcher.fuzzy_match(&p.id.to_string(), query))
@@ -529,7 +530,7 @@ impl SelectionScreen {
                 }
             }
 
-            scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+            scored.sort_unstable_by_key(|b| std::cmp::Reverse(b.0));
             self.filtered_problems
                 .extend(scored.into_iter().map(|(_, idx)| idx));
         }

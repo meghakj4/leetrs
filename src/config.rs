@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::get_config_file;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     pub editor: Option<String>,
     pub language: Option<String>,

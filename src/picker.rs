@@ -3,8 +3,6 @@
 //! [`Picker`] is the main orchestrator used by both the CLI commands (`pick`,
 //! `submit`, `test`) and the TUI. It wraps [`LeetCodeClient`] and adds local
 //! file I/O and a disk cache for the problem list.
-use clap::ValueEnum;
-
 use crate::config::CONFIG;
 use crate::error::EngineError;
 use crate::models::{Identifier, ProblemSummary, UserDetail};
