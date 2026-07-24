@@ -15,11 +15,19 @@ pub mod error;
 
 pub mod auth;
 
+pub mod cache;
+
+pub mod commands;
+
+pub mod format;
+
 pub mod models;
 
 pub mod client;
 
 pub mod picker;
+
+pub mod services;
 
 pub mod tui;
 
