@@ -165,9 +165,7 @@ impl Picker {
                     }
                     .await;
 
-                    if let Err(e) = result {
-                        eprintln!("Failed to fetch/save user data in background: {}", e);
-                    }
+                    let _ = result;
                 });
                 v
             }
@@ -228,9 +226,7 @@ impl Picker {
                     }
                     .await;
 
-                    if let Err(e) = res {
-                        eprintln!("Failed to refresh problems cache in background: {}", e);
-                    }
+                    let _ = res;
                 });
                 v
             }

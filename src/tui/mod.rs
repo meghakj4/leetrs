@@ -108,7 +108,8 @@ impl TerminalGuard {
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen).map_err(anyhow::Error::from)?;
         let backend = CrosstermBackend::new(stdout);
-        let terminal = Terminal::new(backend)?;
+        let mut terminal = Terminal::new(backend)?;
+        terminal.clear()?;
         Ok(Self { terminal })
     }
 
@@ -147,7 +148,9 @@ pub async fn run_tui(
 
         match result {
             Ok(Some(problem)) => {
-                pick_and_open_editor(&picker, &Identifier::String(problem), language).await;
+                if let Err(e) = pick_and_open_editor(&picker, &Identifier::String(problem), language).await {
+                    app.popup_message = Some(e);
+                }
                 app.selection_screen.input_mode = InputMode::Normal;
                 app.should_quit = false;
                 app.selected_problem = None;
@@ -248,49 +251,42 @@ pub async fn pick_and_open_editor(
     picker: &Picker,
     identifier: &Identifier,
     language: &Option<Language>,
-) {
-    match picker.pick(identifier, language).await {
-        Ok((code, desc)) => {
-            let config = CONFIG.get().expect("Failed to initialise config");
-            let editor = config.editor.as_deref().unwrap_or("nvim");
-            let show_description = config.show_description.unwrap_or(true);
+) -> std::result::Result<(), String> {
+    let (code, desc) = picker
+        .pick(identifier, language)
+        .await
+        .map_err(|e| format!("{}", e))?;
 
-            println!("🚀 launching {}...", editor);
+    let config = CONFIG.get().ok_or_else(|| "Failed to initialise config".to_string())?;
+    let editor = config.editor.as_deref().unwrap_or("nvim");
+    let show_description = config.show_description.unwrap_or(true);
 
-            let status = if show_description {
-                if editor.contains("nvim") || editor.contains("vim") {
-                    Command::new(editor)
-                        .arg(&desc)
-                        .arg("-c")
-                        .arg(format!("vsplit {}", code))
-                        .status()
-                } else {
-                    Command::new(editor).arg(&desc).arg(&code).status()
-                }
-            } else {
-                Command::new(editor).arg(&code).status()
-            };
+    println!("🚀 launching {}...", editor);
 
-            match status {
-                Ok(exit_status) if exit_status.success() => {
-                    println!("\n👋 {} closed.", editor);
-                }
-                Ok(exit_status) => {
-                    eprintln!("⚠️ {} exited with an error code: {}", editor, exit_status);
-                }
-                Err(e) => {
-                    eprintln!(
-                        "❌ failed to launch {}. is it installed and in your path? error: {}",
-                        editor, e
-                    );
-                }
-            }
+    let status = if show_description {
+        if editor.contains("nvim") || editor.contains("vim") {
+            Command::new(editor)
+                .arg(&desc)
+                .arg("-c")
+                .arg(format!("vsplit {}", code))
+                .status()
+        } else {
+            Command::new(editor).arg(&desc).arg(&code).status()
+        }
+    } else {
+        Command::new(editor).arg(&code).status()
+    };
+
+    match status {
+        Ok(exit_status) if exit_status.success() => {
+            println!("\n👋 {} closed.", editor);
+            Ok(())
+        }
+        Ok(exit_status) => {
+            Err(format!("{} exited with an error code: {}", editor, exit_status))
         }
         Err(e) => {
-            eprintln!("❌ Failed to pick problem: {}", e);
-            println!("\nPress Enter to return to TUI...");
-            let mut input = String::new();
-            let _ = std::io::stdin().read_line(&mut input);
+            Err(format!("Failed to launch {}: {}", editor, e))
         }
     }
 }
