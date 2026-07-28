@@ -67,11 +67,11 @@ impl Picker {
         let question = match identifier {
             Identifier::Number(num) => {
                 println!("🔍 Fetching problem ID: {}...", num);
-                self.client.get_question_by_id(*num).await.unwrap()
+                self.client.get_question_by_id(*num).await?
             }
             Identifier::String(identifier) => {
                 println!("🔍 Fetching problem: {}...", identifier);
-                self.client.get_question_by_slug(identifier).await.unwrap()
+                self.client.get_question_by_slug(identifier).await?
             }
         };
 
@@ -90,7 +90,7 @@ impl Picker {
                 let snippet = question
                     .code_snippets
                     .first()
-                    .expect("Leetcode problems must have atleast one snippet");
+                    .ok_or_else(|| EngineError::Other("LeetCode problem has no code snippets".to_string()))?;
                 language = Language::from(snippet.lang_slug.clone());
                 snippet
             }
@@ -207,48 +207,36 @@ impl Picker {
                 let data_path_bg = data_path.clone();
                 let user_path_bg = user_path.clone();
                 tokio::spawn(async move {
-                    let user_detail = client_clone
-                        .get_user_detail()
-                        .await
-                        .expect("Failed to retrieve user details");
-                    let data = serde_json::to_string(&user_detail)
-                        .expect("Failed to serialize user_detail list");
-                    fs::write(&user_path_bg, data)
-                        .expect("Unable to write user data json to file");
-                    let mut problems = client_clone
-                        .get_problem_list()
-                        .await
-                        .expect("Failed to fetch problem list");
-                    let question_tags = client_clone
-                        .get_topics_question_list()
-                        .await
-                        .expect("Failed to fetch topics list");
-                    for question_tag in question_tags {
-                        question_tag.question_ids.iter().for_each(|question_id| {
-                            if let Some(problem) =
-                                problems.iter_mut().find(|p| p.id == *question_id)
-                            {
-                                problem.topics.push(question_tag.name.clone());
-                            }
-                        });
+                    let res: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
+                        let user_detail = client_clone.get_user_detail().await?;
+                        let data = serde_json::to_string(&user_detail)?;
+                        let _ = fs::write(&user_path_bg, data);
+                        let mut problems = client_clone.get_problem_list().await?;
+                        let question_tags = client_clone.get_topics_question_list().await?;
+                        for question_tag in question_tags {
+                            question_tag.question_ids.iter().for_each(|question_id| {
+                                if let Some(problem) =
+                                    problems.iter_mut().find(|p| p.id == *question_id)
+                                {
+                                    problem.topics.push(question_tag.name.clone());
+                                }
+                            });
+                        }
+                        let data = serde_json::to_string(&problems)?;
+                        let _ = fs::write(&data_path_bg, data);
+                        Ok(())
                     }
-                    let data =
-                        serde_json::to_string(&problems).expect("Failed to serialize problem list");
-                    fs::write(&data_path_bg, data).expect("Unable to write json to file");
+                    .await;
+
+                    if let Err(e) = res {
+                        eprintln!("Failed to refresh problems cache in background: {}", e);
+                    }
                 });
                 v
             }
             Err(_) => {
-                let mut problems = self
-                    .client
-                    .get_problem_list()
-                    .await
-                    .expect("Failed to fetch problem list");
-                let question_tags = self
-                    .client
-                    .get_topics_question_list()
-                    .await
-                    .expect("Failed to fetch topics list");
+                let mut problems = self.client.get_problem_list().await?;
+                let question_tags = self.client.get_topics_question_list().await?;
                 for question_tag in question_tags {
                     question_tag.question_ids.iter().for_each(|question_id| {
                         if let Some(problem) = problems.iter_mut().find(|p| p.id == *question_id) {
@@ -256,9 +244,8 @@ impl Picker {
                         }
                     });
                 }
-                let data =
-                    serde_json::to_string(&problems).expect("Failed to serialize problem list");
-                fs::write(&data_path, &data).expect("Unable to write json to file");
+                let data = serde_json::to_string(&problems)?;
+                let _ = fs::write(&data_path, &data);
                 data
             }
         };

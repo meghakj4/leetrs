@@ -249,40 +249,48 @@ pub async fn pick_and_open_editor(
     identifier: &Identifier,
     language: &Option<Language>,
 ) {
-    if let Ok((code, desc)) = picker.pick(identifier, language).await {
-        let config = CONFIG.get().expect("Failed to initialise config");
-        let editor = config.editor.as_deref().unwrap_or("nvim");
-        let show_description = config.show_description.unwrap_or(true);
+    match picker.pick(identifier, language).await {
+        Ok((code, desc)) => {
+            let config = CONFIG.get().expect("Failed to initialise config");
+            let editor = config.editor.as_deref().unwrap_or("nvim");
+            let show_description = config.show_description.unwrap_or(true);
 
-        println!("🚀 launching {}...", editor);
+            println!("🚀 launching {}...", editor);
 
-        let status = if show_description {
-            if editor.contains("nvim") || editor.contains("vim") {
-                Command::new(editor)
-                    .arg(&desc)
-                    .arg("-c")
-                    .arg(format!("vsplit {}", code))
-                    .status()
+            let status = if show_description {
+                if editor.contains("nvim") || editor.contains("vim") {
+                    Command::new(editor)
+                        .arg(&desc)
+                        .arg("-c")
+                        .arg(format!("vsplit {}", code))
+                        .status()
+                } else {
+                    Command::new(editor).arg(&desc).arg(&code).status()
+                }
             } else {
-                Command::new(editor).arg(&desc).arg(&code).status()
-            }
-        } else {
-            Command::new(editor).arg(&code).status()
-        };
+                Command::new(editor).arg(&code).status()
+            };
 
-        match status {
-            Ok(exit_status) if exit_status.success() => {
-                println!("\n👋 {} closed.", editor);
+            match status {
+                Ok(exit_status) if exit_status.success() => {
+                    println!("\n👋 {} closed.", editor);
+                }
+                Ok(exit_status) => {
+                    eprintln!("⚠️ {} exited with an error code: {}", editor, exit_status);
+                }
+                Err(e) => {
+                    eprintln!(
+                        "❌ failed to launch {}. is it installed and in your path? error: {}",
+                        editor, e
+                    );
+                }
             }
-            Ok(exit_status) => {
-                eprintln!("⚠️ {} exited with an error code: {}", editor, exit_status);
-            }
-            Err(e) => {
-                eprintln!(
-                    "❌ failed to launch {}. is it installed and in your path? error: {}",
-                    editor, e
-                );
-            }
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to pick problem: {}", e);
+            println!("\nPress Enter to return to TUI...");
+            let mut input = String::new();
+            let _ = std::io::stdin().read_line(&mut input);
         }
     }
 }

@@ -104,8 +104,7 @@ pub async fn handle_pick(
     preview: bool,
 ) -> std::result::Result<(), String> {
     let picker = make_picker().await?;
-    pick_and_open(&picker, identifier, language, preview).await;
-    Ok(())
+    pick_and_open(&picker, identifier, language, preview).await
 }
 
 /// Runs the solution against example test cases without recording a submission.
@@ -137,8 +136,20 @@ pub fn handle_completion<C: CommandFactory>(shell: &Shell) {
 
 /// Fetches the full problem list and user data, then launches the interactive TUI.
 pub async fn open_tui(language: &Option<Language>) {
-    let creds = LeetCodeCredentials::load().expect("Please run `leetrs auth` first.");
-    let client = LeetCodeClient::new(creds).expect("Failed to init client");
+    let creds = match LeetCodeCredentials::load() {
+        Some(c) => c,
+        None => {
+            eprintln!("❌ Not authenticated. Please run `leetrs auth` first.");
+            return;
+        }
+    };
+    let client = match LeetCodeClient::new(creds) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("❌ Failed to initialize client: {}", e);
+            return;
+        }
+    };
     let picker = Picker::new(client);
 
     let problems = match picker.list_problems().await {
@@ -165,48 +176,50 @@ pub async fn pick_and_open(
     identifier: &Identifier,
     language: &Option<Language>,
     preview: bool,
-) {
-    if let Ok((code, desc)) = picker.pick(identifier, language).await {
-        if !preview {
-            let config = CONFIG.get().expect("Failed to initialise config");
-            let editor = config.editor.as_deref().unwrap_or("nvim");
-            let show_description = config.show_description.unwrap_or(true);
+) -> std::result::Result<(), String> {
+    let (code, desc) = picker
+        .pick(identifier, language)
+        .await
+        .map_err(|e| format!("{}", e))?;
 
-            println!("🚀 launching {}...", editor);
+    if !preview {
+        let config = CONFIG.get().ok_or_else(|| "Failed to initialise config".to_string())?;
+        let editor = config.editor.as_deref().unwrap_or("nvim");
+        let show_description = config.show_description.unwrap_or(true);
 
-            let status = if show_description {
-                if editor.contains("nvim") || editor.contains("vim") {
-                    Command::new(editor)
-                        .arg(&desc)
-                        .arg("-c")
-                        .arg(format!("vsplit {}", code))
-                        .status()
-                } else {
-                    Command::new(editor).arg(&desc).arg(&code).status()
-                }
+        println!("🚀 launching {}...", editor);
+
+        let status = if show_description {
+            if editor.contains("nvim") || editor.contains("vim") {
+                Command::new(editor)
+                    .arg(&desc)
+                    .arg("-c")
+                    .arg(format!("vsplit {}", code))
+                    .status()
             } else {
-                Command::new(editor).arg(&code).status()
-            };
-
-            match status {
-                Ok(exit_status) if exit_status.success() => {
-                    println!("\n👋 {} closed.", editor);
-                }
-                Ok(exit_status) => {
-                    eprintln!("⚠️ {} exited with an error code: {}", editor, exit_status);
-                }
-                Err(e) => {
-                    eprintln!(
-                        "❌ failed to launch {}. is it installed and in your path? error: {}",
-                        editor, e
-                    );
-                }
+                Command::new(editor).arg(&desc).arg(&code).status()
             }
         } else {
-            let content = fs::read_to_string(desc);
-            if let Ok(content) = content {
-                print!("{}", content);
+            Command::new(editor).arg(&code).status()
+        };
+
+        match status {
+            Ok(exit_status) if exit_status.success() => {
+                println!("\n👋 {} closed.", editor);
+            }
+            Ok(exit_status) => {
+                eprintln!("⚠️ {} exited with an error code: {}", editor, exit_status);
+            }
+            Err(e) => {
+                eprintln!(
+                    "❌ failed to launch {}. is it installed and in your path? error: {}",
+                    editor, e
+                );
             }
         }
+    } else {
+        let content = fs::read_to_string(desc).map_err(|e| format!("Failed to read description file: {}", e))?;
+        print!("{}", content);
     }
+    Ok(())
 }
