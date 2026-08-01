@@ -4,6 +4,9 @@ use std::collections::HashSet;
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use ratatui::widgets::ListState;
 
+use crossterm::event::KeyEvent;
+use tui_input::{Input, backend::crossterm::EventHandler};
+
 use crate::models::ProblemSummary;
 
 // ==============================================================================
@@ -15,12 +18,22 @@ use crate::models::ProblemSummary;
 // just to build the list of filterable topics.
 const TOPICS_TXT: &str = include_str!("../../../topics.txt");
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TopicInputMode {
+    #[default]
+    Normal,
+    Editing,
+}
+
 /// Topic filter overlay state — a sorted list of all known topics and the
 /// currently selected subset.
 pub struct TopicFilterState {
     pub all_topics: Vec<String>,
     pub selected_topics: HashSet<String>,
     pub list_state: ListState,
+    pub search_input: Input,
+    pub filtered_topics: Vec<String>,
+    pub mode: TopicInputMode,
 }
 
 impl TopicFilterState {
@@ -40,10 +53,15 @@ impl TopicFilterState {
             list_state.select(Some(0));
         }
 
+        let filtered_topics = all_topics.clone();
+
         Self {
             all_topics,
             selected_topics: HashSet::new(),
             list_state,
+            search_input: Input::default(),
+            filtered_topics,
+            mode: TopicInputMode::Normal,
         }
     }
 
@@ -51,12 +69,46 @@ impl TopicFilterState {
         self.list_state.selected().unwrap_or(0)
     }
 
+    pub fn update_filter(&mut self) {
+        let query = self.search_input.value().to_lowercase();
+        if query.is_empty() {
+            self.filtered_topics = self.all_topics.clone();
+        } else {
+            self.filtered_topics = self
+                .all_topics
+                .iter()
+                .filter(|t| t.to_lowercase().contains(&query))
+                .cloned()
+                .collect();
+        }
+
+        if self.filtered_topics.is_empty() {
+            self.list_state.select(None);
+        } else {
+            let curr = self.list_state.selected().unwrap_or(0);
+            if curr >= self.filtered_topics.len() || self.list_state.selected().is_none() {
+                self.list_state.select(Some(0));
+            }
+        }
+    }
+
+    pub fn handle_key(&mut self, key_event: &KeyEvent) {
+        self.search_input
+            .handle_event(&crossterm::event::Event::Key(*key_event));
+        self.update_filter();
+    }
+
+    pub fn clear_search(&mut self) {
+        self.search_input = Input::default();
+        self.update_filter();
+    }
+
     pub fn next(&mut self) {
-        if self.all_topics.is_empty() {
+        if self.filtered_topics.is_empty() {
             return;
         }
         let i = self.cursor();
-        let next = if i >= self.all_topics.len() - 1 {
+        let next = if i >= self.filtered_topics.len() - 1 {
             0
         } else {
             i + 1
@@ -65,12 +117,12 @@ impl TopicFilterState {
     }
 
     pub fn previous(&mut self) {
-        if self.all_topics.is_empty() {
+        if self.filtered_topics.is_empty() {
             return;
         }
         let i = self.cursor();
         let prev = if i == 0 {
-            self.all_topics.len() - 1
+            self.filtered_topics.len() - 1
         } else {
             i - 1
         };
@@ -78,16 +130,16 @@ impl TopicFilterState {
     }
 
     pub fn scroll_down(&mut self, n: usize) {
-        if self.all_topics.is_empty() {
+        if self.filtered_topics.is_empty() {
             return;
         }
-        let max_idx = self.all_topics.len() - 1;
+        let max_idx = self.filtered_topics.len() - 1;
         let next = (self.cursor() + n).min(max_idx);
         self.list_state.select(Some(next));
     }
 
     pub fn scroll_up(&mut self, n: usize) {
-        if self.all_topics.is_empty() {
+        if self.filtered_topics.is_empty() {
             return;
         }
         let prev = self.cursor().saturating_sub(n);
@@ -96,7 +148,7 @@ impl TopicFilterState {
 
     pub fn toggle_current(&mut self) {
         let cursor = self.cursor();
-        if let Some(topic) = self.all_topics.get(cursor).cloned() {
+        if let Some(topic) = self.filtered_topics.get(cursor).cloned() {
             if self.selected_topics.contains(&topic) {
                 self.selected_topics.remove(&topic);
             } else {
@@ -191,6 +243,7 @@ impl Default for FilterState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crossterm::event::{KeyCode, KeyModifiers};
 
     #[test]
     fn topic_filter_state_loads_topics_from_file() {
@@ -281,5 +334,28 @@ mod tests {
         filters.topics.selected_topics.insert("Array".to_string());
         let matched = filters.apply(&problems, "");
         assert_eq!(matched, vec![0]);
+    }
+
+    #[test]
+    fn test_topic_filter_search_filtering() {
+        let mut state = TopicFilterState::new();
+        let total = state.all_topics.len();
+        assert!(total > 0);
+        assert_eq!(state.filtered_topics.len(), total);
+
+        // Type "array" into search input
+        let keys = ['a', 'r', 'r', 'a', 'y'];
+        for c in keys {
+            let key = KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE);
+            state.handle_key(&key);
+        }
+
+        assert_eq!(state.search_input.value(), "array");
+        assert_eq!(state.filtered_topics, vec!["Array", "Suffix Array"]);
+
+        // Clear search
+        state.clear_search();
+        assert_eq!(state.search_input.value(), "");
+        assert_eq!(state.filtered_topics.len(), total);
     }
 }

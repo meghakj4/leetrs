@@ -263,7 +263,7 @@ When navigating the interactive TUI (`leetrs tui`), the following keybindings ar
 | `2` | Medium Problems|
 | `3` | Hard Problems|
 | `4` | All difficulties|
-| `t` | Open topic overlay filter modal (supports `j`/`k`, `Ctrl+d`/`Ctrl+u`, `Space`, `c`) |
+| `t` | Open topic overlay filter modal (real-time topic search, `Ctrl+j`/`Ctrl+k` navigation, `Enter`/`Space` toggle) |
 | `Tab` | Cycle focus between UI components |
 | `?` | Toggle interactive Help overlay |
 | `Esc` | Clear search filter / exit edit mode / dismiss popup |

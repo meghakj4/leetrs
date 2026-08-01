@@ -84,11 +84,29 @@ impl Screen for HelpScreen {
                 help_area.width,
             ),
             create_split_item("", "", Color::White, help_area.width),
-            create_split_item("Search mode", "", Color::White, help_area.width),
+            create_split_item("Topic Filter Overlay", "", Color::White, help_area.width),
+            create_split_item(
+                "Type text",
+                "Filter topics in real-time",
+                Color::Cyan,
+                help_area.width,
+            ),
+            create_split_item(
+                "Ctrl+j/k or ↓/↑",
+                "Navigate topics while searching",
+                Color::Cyan,
+                help_area.width,
+            ),
+            create_split_item(
+                "Enter / Space",
+                "Toggle selected topic",
+                Color::Cyan,
+                help_area.width,
+            ),
             create_split_item(
                 "Esc",
-                "Return to list from search",
-                Color::Yellow,
+                "Clear search query / close overlay",
+                Color::Cyan,
                 help_area.width,
             ),
         ];

@@ -22,8 +22,11 @@ use crate::{
         renderers::render_problem_row,
         screen::Screen,
         widgets::{
-            filter_state::FilterState, premium_gate::PremiumGate, problem_table::ProblemTable,
-            search_bar::SearchBar, topic_overlay::render_topic_overlay,
+            filter_state::{FilterState, TopicInputMode},
+            premium_gate::PremiumGate,
+            problem_table::ProblemTable,
+            search_bar::SearchBar,
+            topic_overlay::render_topic_overlay,
         },
     },
 };
@@ -132,10 +135,16 @@ impl Screen for SelectionScreen {
                 "Type to filter, press 'Esc' to return to list, press 'Enter' to select.",
                 Style::default().fg(Color::Yellow),
             ),
-            InputMode::TopicFilter => (
-                "j/k or Ctrl+d/u: navigate   Space: toggle   c: clear all   Esc/Enter: close",
-                Style::default().fg(Color::Cyan),
-            ),
+            InputMode::TopicFilter => match self.filters.topics.mode {
+                TopicInputMode::Normal => (
+                    "'/': search topics   j/k: navigate   Space/Enter: toggle   c: clear   Esc: close",
+                    Style::default().fg(Color::Cyan),
+                ),
+                TopicInputMode::Editing => (
+                    "Type to filter topics   Ctrl+j/k: navigate   Enter: toggle   Esc: done searching",
+                    Style::default().fg(Color::Yellow),
+                ),
+            },
         };
         frame.render_widget(
             Paragraph::new(instruction_text).style(instruction_style),
@@ -208,7 +217,10 @@ impl Screen for SelectionScreen {
                 KeyCode::Left | KeyCode::Char('h') => self.table.state.select_next_column(),
                 KeyCode::Right | KeyCode::Char('l') => self.table.state.select_previous_column(),
                 KeyCode::Char('/') => self.input_mode = InputMode::Editing,
-                KeyCode::Char('t') => self.input_mode = InputMode::TopicFilter,
+                KeyCode::Char('t') => {
+                    self.input_mode = InputMode::TopicFilter;
+                    self.filters.topics.mode = TopicInputMode::Normal;
+                }
                 KeyCode::Char('o') => {
                     if let Some(i) = self.table.state.selected()
                         && !self.filtered_problems.is_empty()
@@ -297,45 +309,85 @@ impl SelectionScreen {
     }
 
     fn handle_topic_filter_key(&mut self, key_event: &KeyEvent) -> Option<Action> {
-        if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-            match key_event.code {
-                KeyCode::Char('d') | KeyCode::Char('D') => {
-                    self.filters.topics.scroll_down(10);
-                    return None;
+        match self.filters.topics.mode {
+            TopicInputMode::Normal => match key_event.code {
+                KeyCode::Esc => {
+                    self.input_mode = InputMode::Normal;
                 }
-                KeyCode::Char('u') | KeyCode::Char('U') => {
+                KeyCode::Char('/') => {
+                    self.filters.topics.mode = TopicInputMode::Editing;
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.filters.topics.next();
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.filters.topics.previous();
+                }
+                KeyCode::PageDown | KeyCode::Char('d') => {
+                    self.filters.topics.scroll_down(10);
+                }
+                KeyCode::PageUp | KeyCode::Char('u') => {
                     self.filters.topics.scroll_up(10);
-                    return None;
+                }
+                KeyCode::Char(' ') | KeyCode::Enter => {
+                    self.filters.topics.toggle_current();
+                    self.apply_filters();
+                }
+                KeyCode::Char('c') => {
+                    self.filters.topics.clear();
+                    self.apply_filters();
                 }
                 _ => {}
-            }
-        }
+            },
 
-        match key_event.code {
-            KeyCode::Esc | KeyCode::Enter => {
-                self.input_mode = InputMode::Normal;
+            TopicInputMode::Editing => {
+                if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                    match key_event.code {
+                        KeyCode::Char('j') | KeyCode::Char('J') => {
+                            self.filters.topics.next();
+                            return None;
+                        }
+                        KeyCode::Char('k') | KeyCode::Char('K') => {
+                            self.filters.topics.previous();
+                            return None;
+                        }
+                        KeyCode::Char('d') | KeyCode::Char('D') => {
+                            self.filters.topics.scroll_down(10);
+                            return None;
+                        }
+                        KeyCode::Char('u') | KeyCode::Char('U') => {
+                            self.filters.topics.scroll_up(10);
+                            return None;
+                        }
+                        _ => {}
+                    }
+                }
+
+                match key_event.code {
+                    KeyCode::Esc => {
+                        self.filters.topics.mode = TopicInputMode::Normal;
+                    }
+                    KeyCode::Enter => {
+                        self.filters.topics.toggle_current();
+                        self.apply_filters();
+                    }
+                    KeyCode::Down => {
+                        self.filters.topics.next();
+                    }
+                    KeyCode::Up => {
+                        self.filters.topics.previous();
+                    }
+                    KeyCode::PageDown => {
+                        self.filters.topics.scroll_down(10);
+                    }
+                    KeyCode::PageUp => {
+                        self.filters.topics.scroll_up(10);
+                    }
+                    _ => {
+                        self.filters.topics.handle_key(key_event);
+                    }
+                }
             }
-            KeyCode::Down | KeyCode::Char('j') => {
-                self.filters.topics.next();
-            }
-            KeyCode::Up | KeyCode::Char('k') => {
-                self.filters.topics.previous();
-            }
-            KeyCode::Char('d') => {
-                self.filters.topics.scroll_down(10);
-            }
-            KeyCode::Char('u') => {
-                self.filters.topics.scroll_up(10);
-            }
-            KeyCode::Char(' ') => {
-                self.filters.topics.toggle_current();
-                self.apply_filters();
-            }
-            KeyCode::Char('c') => {
-                self.filters.topics.clear();
-                self.apply_filters();
-            }
-            _ => {}
         }
         None
     }
@@ -394,36 +446,57 @@ mod tests {
     }
 
     #[test]
-    fn test_handle_topic_filter_ctrl_d_and_ctrl_u() {
+    fn test_handle_topic_filter_j_and_k_navigation() {
         let mut screen = create_test_screen();
         screen.input_mode = InputMode::TopicFilter;
+        screen.filters.topics.mode = TopicInputMode::Normal;
         assert_eq!(screen.filters.topics.cursor(), 0);
 
-        // Send Ctrl + d key event
-        let ctrl_d = KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL);
-        screen.event_loop(&ctrl_d);
-        assert_eq!(screen.filters.topics.cursor(), 10);
+        // Send 'j' key event to move down
+        let key_j = KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE);
+        screen.event_loop(&key_j);
+        assert_eq!(screen.filters.topics.cursor(), 1);
 
-        // Send Ctrl + u key event
-        let ctrl_u = KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL);
-        screen.event_loop(&ctrl_u);
+        // Send 'k' key event to move up
+        let key_k = KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE);
+        screen.event_loop(&key_k);
         assert_eq!(screen.filters.topics.cursor(), 0);
     }
 
     #[test]
-    fn test_handle_topic_filter_plain_d_and_u() {
+    fn test_handle_topic_filter_search_and_esc() {
         let mut screen = create_test_screen();
         screen.input_mode = InputMode::TopicFilter;
-        assert_eq!(screen.filters.topics.cursor(), 0);
+        screen.filters.topics.mode = TopicInputMode::Normal;
 
-        // Send 'd' key event
-        let plain_d = KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE);
-        screen.event_loop(&plain_d);
-        assert_eq!(screen.filters.topics.cursor(), 10);
+        // Press '/' to enter search mode
+        let key_slash = KeyEvent::new(KeyCode::Char('/'), KeyModifiers::NONE);
+        screen.event_loop(&key_slash);
+        assert_eq!(screen.filters.topics.mode, TopicInputMode::Editing);
 
-        // Send 'u' key event
-        let plain_u = KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE);
-        screen.event_loop(&plain_u);
-        assert_eq!(screen.filters.topics.cursor(), 0);
+        // Type "Array" into topic filter search
+        for c in "Array".chars() {
+            let key = KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE);
+            screen.event_loop(&key);
+        }
+
+        assert_eq!(screen.filters.topics.search_input.value(), "Array");
+        assert!(
+            screen
+                .filters
+                .topics
+                .filtered_topics
+                .contains(&"Array".to_string())
+        );
+
+        // First Esc exits search mode to Normal mode in topic filter
+        let esc = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
+        screen.event_loop(&esc);
+        assert_eq!(screen.filters.topics.mode, TopicInputMode::Normal);
+        assert!(matches!(screen.input_mode, InputMode::TopicFilter));
+
+        // Second Esc closes topic filter overlay
+        screen.event_loop(&esc);
+        assert!(matches!(screen.input_mode, InputMode::Normal));
     }
 }
