@@ -6,6 +6,15 @@ use ratatui::widgets::ListState;
 
 use crate::models::ProblemSummary;
 
+// ==============================================================================
+// Topic Catalog Definition
+// ==============================================================================
+
+// Embed the complete topic catalog at compile time from `topics.txt` at the root
+// of the repository. This avoids looping through the entire problem set at runtime
+// just to build the list of filterable topics.
+const TOPICS_TXT: &str = include_str!("../../../topics.txt");
+
 /// Topic filter overlay state — a sorted list of all known topics and the
 /// currently selected subset.
 pub struct TopicFilterState {
@@ -15,14 +24,15 @@ pub struct TopicFilterState {
 }
 
 impl TopicFilterState {
-    pub fn new(problems: &[ProblemSummary]) -> Self {
-        let mut set = HashSet::new();
-        for p in problems.iter() {
-            for t in &p.topics {
-                set.insert(t.clone());
-            }
-        }
-        let mut all_topics: Vec<String> = set.into_iter().collect();
+    /// Constructs a new [`TopicFilterState`] populated with topics loaded
+    /// directly from `topics.txt`.
+    pub fn new() -> Self {
+        // Parse raw topic lines, trimming surrounding quotes and whitespace.
+        let mut all_topics: Vec<String> = TOPICS_TXT
+            .lines()
+            .map(|line| line.trim().trim_matches('"').to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
         all_topics.sort();
 
         let mut list_state = ListState::default();
@@ -83,6 +93,12 @@ impl TopicFilterState {
     }
 }
 
+impl Default for TopicFilterState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Encapsulates difficulty, topic, and search filters.
 ///
 /// Call [`FilterState::apply`] to get the set of problem indices that pass all
@@ -93,13 +109,12 @@ pub struct FilterState {
 }
 
 impl FilterState {
-    pub fn new(problems: &[ProblemSummary]) -> Self {
+    pub fn new() -> Self {
         Self {
             difficulty: None,
-            topics: TopicFilterState::new(problems),
+            topics: TopicFilterState::new(),
         }
     }
-
     /// Returns the sorted list of indices into `problems` that survive all
     /// active filters and the given search query.
     pub fn apply(&self, problems: &[ProblemSummary], query: &str) -> Vec<usize> {
@@ -149,3 +164,86 @@ impl FilterState {
         }
     }
 }
+
+impl Default for FilterState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn topic_filter_state_loads_topics_from_file() {
+        let state = TopicFilterState::new();
+        assert!(!state.all_topics.is_empty());
+        assert!(state.all_topics.contains(&"Array".to_string()));
+        assert!(state.all_topics.contains(&"Dynamic Programming".to_string()));
+        assert_eq!(state.cursor(), 0);
+    }
+
+    #[test]
+    fn topic_filter_state_navigation_and_toggle() {
+        let mut state = TopicFilterState::new();
+        let first_topic = state.all_topics[0].clone();
+
+        state.toggle_current();
+        assert!(state.selected_topics.contains(&first_topic));
+
+        state.toggle_current();
+        assert!(!state.selected_topics.contains(&first_topic));
+
+        state.next();
+        assert_eq!(state.cursor(), 1);
+
+        state.previous();
+        assert_eq!(state.cursor(), 0);
+
+        state.toggle_current();
+        state.clear();
+        assert!(state.selected_topics.is_empty());
+    }
+
+    #[test]
+    fn filter_state_apply_with_topic_filter() {
+        let mut filters = FilterState::default();
+        let problems = vec![
+            ProblemSummary {
+                id: 1,
+                acceptance: 50.0,
+                accepted: 100,
+                difficulty: 1,
+                slug: "two-sum".to_string(),
+                status: None,
+                submitted: 200,
+                title: "Two Sum".to_string(),
+                is_paid: false,
+                topics: vec!["Array".to_string(), "Hash Table".to_string()],
+            },
+            ProblemSummary {
+                id: 2,
+                acceptance: 40.0,
+                accepted: 80,
+                difficulty: 2,
+                slug: "add-two-numbers".to_string(),
+                status: None,
+                submitted: 200,
+                title: "Add Two Numbers".to_string(),
+                is_paid: false,
+                topics: vec!["Linked List".to_string(), "Math".to_string()],
+            },
+        ];
+
+        // Initially no topic selected, returns all problems
+        let matched = filters.apply(&problems, "");
+        assert_eq!(matched, vec![0, 1]);
+
+        // Filter by "Array" topic
+        filters.topics.selected_topics.insert("Array".to_string());
+        let matched = filters.apply(&problems, "");
+        assert_eq!(matched, vec![0]);
+    }
+}
+

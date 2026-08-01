@@ -270,7 +270,7 @@ impl Screen for SelectionScreen {
 impl SelectionScreen {
     pub fn new(problems: Rc<[ProblemSummary]>, user_detail: Option<UserDetail>) -> Self {
         let len = problems.len();
-        let filters = FilterState::new(&problems);
+        let filters = FilterState::new();
         Self {
             filtered_problems: (0..len).collect(),
             table: ProblemTable::new(len),
