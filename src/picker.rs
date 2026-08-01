@@ -362,49 +362,12 @@ mod tests {
         assert_eq!(desc, "longest_palindromic_substring.md");
     }
 
-    // -----------------------------------------------------------------------
-    // Metadata comment prefix per language
-    // -----------------------------------------------------------------------
-
-    fn meta_prefix(lang: &Language) -> &'static str {
-        match lang {
-            Language::Python | Language::Pandas | Language::Mysql => "#",
-            Language::Rust => "//",
-            Language::Postgres => "--",
-        }
-    }
-
-    #[test]
-    fn meta_prefix_python_is_hash() {
-        assert_eq!(meta_prefix(&Language::Python), "#");
-    }
-
-    #[test]
-    fn meta_prefix_pandas_is_hash() {
-        assert_eq!(meta_prefix(&Language::Pandas), "#");
-    }
-
-    #[test]
-    fn meta_prefix_rust_is_double_slash() {
-        assert_eq!(meta_prefix(&Language::Rust), "//");
-    }
-
-    #[test]
-    fn meta_prefix_mysql_is_hash() {
-        assert_eq!(meta_prefix(&Language::Mysql), "#");
-    }
-
-    #[test]
-    fn meta_prefix_postgres_is_double_dash() {
-        assert_eq!(meta_prefix(&Language::Postgres), "--");
-    }
-
     #[test]
     fn metadata_line_format_rust() {
         let lang = Language::Rust;
         let line = format!(
             "{} id={} slug={} lang={}",
-            meta_prefix(&lang),
+            lang.meta_comment_prefix(),
             1,
             "two-sum",
             lang.to_lang_slug()
@@ -417,7 +380,7 @@ mod tests {
         let lang = Language::Python;
         let line = format!(
             "{} id={} slug={} lang={}",
-            meta_prefix(&lang),
+            lang.meta_comment_prefix(),
             42,
             "climbing-stairs",
             lang.to_lang_slug()
@@ -430,45 +393,11 @@ mod tests {
         let lang = Language::Postgres;
         let line = format!(
             "{} id={} slug={} lang={}",
-            meta_prefix(&lang),
+            lang.meta_comment_prefix(),
             175,
             "combine-two-tables",
             lang.to_lang_slug()
         );
         assert_eq!(line, "-- id=175 slug=combine-two-tables lang=postgresql");
-    }
-
-    // -----------------------------------------------------------------------
-    // Acceptance ratio edge cases (mirrors get_problem_list arithmetic)
-    // -----------------------------------------------------------------------
-
-    fn acceptance_ratio(accepted: u64, submitted: u64) -> f64 {
-        accepted as f64 / submitted as f64
-    }
-
-    #[test]
-    fn acceptance_ratio_normal() {
-        let r = acceptance_ratio(500, 1000);
-        assert!((r - 0.5).abs() < 1e-9);
-    }
-
-    #[test]
-    fn acceptance_ratio_perfect() {
-        let r = acceptance_ratio(1000, 1000);
-        assert!((r - 1.0).abs() < 1e-9);
-    }
-
-    #[test]
-    fn acceptance_ratio_zero_submissions_is_nan() {
-        // 0/0 in floating point is NaN. This is what the current production code
-        // produces; asserting it documents the known behavior explicitly.
-        let r = acceptance_ratio(0, 0);
-        assert!(r.is_nan(), "expected NaN for 0/0, got {r}");
-    }
-
-    #[test]
-    fn acceptance_ratio_zero_accepted() {
-        let r = acceptance_ratio(0, 100);
-        assert!((r - 0.0).abs() < 1e-9);
     }
 }

@@ -249,8 +249,8 @@ When navigating the interactive TUI (`leetrs tui`), the following keybindings ar
 | `k` / `Up` | Move selection up one item |
 | `g g` | Jump to top of problem list |
 | `G` | Jump to bottom of problem list |
-| `Ctrl+d` | Page down |
-| `Ctrl+u` | Page up |
+| `Ctrl+d` | Page down (problem list & topic filter) |
+| `Ctrl+u` | Page up (problem list & topic filter) |
 | `Enter` | Pick selected problem and open in configured editor |
 | `o` | Open selected problem in default web browser |
 
@@ -259,11 +259,11 @@ When navigating the interactive TUI (`leetrs tui`), the following keybindings ar
 | Keybinding | Action |
 |---|---|
 | `/` | Focus search bar (fuzzy search by title / ID) |
-| `1` | Easy Problems |
-| `2` | Medium Problems |
-| `3` | Hard Problems |
-| `4` | Any difficulty |
-| `t` | Open topic overlay filter modal |
+| `1`| Easy Problems|
+| `2` | Medium Problems|
+| `3` | Hard Problems|
+| `4` | All difficulties|
+| `t` | Open topic overlay filter modal (supports `j`/`k`, `Ctrl+d`/`Ctrl+u`, `Space`, `c`) |
 | `Tab` | Cycle focus between UI components |
 | `?` | Toggle interactive Help overlay |
 | `Esc` | Clear search filter / exit edit mode / dismiss popup |

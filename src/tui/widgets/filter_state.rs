@@ -77,6 +77,23 @@ impl TopicFilterState {
         self.list_state.select(Some(prev));
     }
 
+    pub fn scroll_down(&mut self, n: usize) {
+        if self.all_topics.is_empty() {
+            return;
+        }
+        let max_idx = self.all_topics.len() - 1;
+        let next = (self.cursor() + n).min(max_idx);
+        self.list_state.select(Some(next));
+    }
+
+    pub fn scroll_up(&mut self, n: usize) {
+        if self.all_topics.is_empty() {
+            return;
+        }
+        let prev = self.cursor().saturating_sub(n);
+        self.list_state.select(Some(prev));
+    }
+
     pub fn toggle_current(&mut self) {
         let cursor = self.cursor();
         if let Some(topic) = self.all_topics.get(cursor).cloned() {
@@ -180,7 +197,11 @@ mod tests {
         let state = TopicFilterState::new();
         assert!(!state.all_topics.is_empty());
         assert!(state.all_topics.contains(&"Array".to_string()));
-        assert!(state.all_topics.contains(&"Dynamic Programming".to_string()));
+        assert!(
+            state
+                .all_topics
+                .contains(&"Dynamic Programming".to_string())
+        );
         assert_eq!(state.cursor(), 0);
     }
 
@@ -204,6 +225,22 @@ mod tests {
         state.toggle_current();
         state.clear();
         assert!(state.selected_topics.is_empty());
+    }
+
+    #[test]
+    fn topic_filter_state_scroll_down_and_up() {
+        let mut state = TopicFilterState::new();
+        assert!(!state.all_topics.is_empty());
+
+        let initial = state.cursor();
+        state.scroll_down(10);
+        assert_eq!(
+            state.cursor(),
+            (initial + 10).min(state.all_topics.len() - 1)
+        );
+
+        state.scroll_up(10);
+        assert_eq!(state.cursor(), initial);
     }
 
     #[test]
@@ -246,4 +283,3 @@ mod tests {
         assert_eq!(matched, vec![0]);
     }
 }
-

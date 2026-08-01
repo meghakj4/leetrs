@@ -133,7 +133,7 @@ impl Screen for SelectionScreen {
                 Style::default().fg(Color::Yellow),
             ),
             InputMode::TopicFilter => (
-                "j/k: navigate   Space: toggle   c: clear all   Esc/Enter: close",
+                "j/k or Ctrl+d/u: navigate   Space: toggle   c: clear all   Esc/Enter: close",
                 Style::default().fg(Color::Cyan),
             ),
         };
@@ -297,6 +297,20 @@ impl SelectionScreen {
     }
 
     fn handle_topic_filter_key(&mut self, key_event: &KeyEvent) -> Option<Action> {
+        if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+            match key_event.code {
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    self.filters.topics.scroll_down(10);
+                    return None;
+                }
+                KeyCode::Char('u') | KeyCode::Char('U') => {
+                    self.filters.topics.scroll_up(10);
+                    return None;
+                }
+                _ => {}
+            }
+        }
+
         match key_event.code {
             KeyCode::Esc | KeyCode::Enter => {
                 self.input_mode = InputMode::Normal;
@@ -306,6 +320,12 @@ impl SelectionScreen {
             }
             KeyCode::Up | KeyCode::Char('k') => {
                 self.filters.topics.previous();
+            }
+            KeyCode::Char('d') => {
+                self.filters.topics.scroll_down(10);
+            }
+            KeyCode::Char('u') => {
+                self.filters.topics.scroll_up(10);
             }
             KeyCode::Char(' ') => {
                 self.filters.topics.toggle_current();
@@ -348,5 +368,62 @@ impl SelectionScreen {
         };
 
         format!(" Problems{}{} ", diff_part, topic_part)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_screen() -> SelectionScreen {
+        let problems: Vec<ProblemSummary> = (0..20)
+            .map(|i| ProblemSummary {
+                id: i,
+                title: format!("Problem {}", i),
+                slug: format!("problem-{}", i),
+                difficulty: 1,
+                acceptance: 50.0,
+                accepted: 100,
+                submitted: 200,
+                is_paid: false,
+                topics: vec![format!("Topic_{:02}", i)],
+                status: None,
+            })
+            .collect();
+        SelectionScreen::new(Rc::from(problems.into_boxed_slice()), None)
+    }
+
+    #[test]
+    fn test_handle_topic_filter_ctrl_d_and_ctrl_u() {
+        let mut screen = create_test_screen();
+        screen.input_mode = InputMode::TopicFilter;
+        assert_eq!(screen.filters.topics.cursor(), 0);
+
+        // Send Ctrl + d key event
+        let ctrl_d = KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL);
+        screen.event_loop(&ctrl_d);
+        assert_eq!(screen.filters.topics.cursor(), 10);
+
+        // Send Ctrl + u key event
+        let ctrl_u = KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL);
+        screen.event_loop(&ctrl_u);
+        assert_eq!(screen.filters.topics.cursor(), 0);
+    }
+
+    #[test]
+    fn test_handle_topic_filter_plain_d_and_u() {
+        let mut screen = create_test_screen();
+        screen.input_mode = InputMode::TopicFilter;
+        assert_eq!(screen.filters.topics.cursor(), 0);
+
+        // Send 'd' key event
+        let plain_d = KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE);
+        screen.event_loop(&plain_d);
+        assert_eq!(screen.filters.topics.cursor(), 10);
+
+        // Send 'u' key event
+        let plain_u = KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE);
+        screen.event_loop(&plain_u);
+        assert_eq!(screen.filters.topics.cursor(), 0);
     }
 }

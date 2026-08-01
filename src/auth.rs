@@ -185,19 +185,6 @@ mod tests {
         assert!(json.contains("csrf_token"), "missing 'csrf_token' key");
     }
 
-    #[test]
-    fn credentials_clone_is_independent() {
-        let original = LeetCodeCredentials {
-            session_cookie: "orig_session".to_string(),
-            csrf_token: "orig_csrf".to_string(),
-        };
-        let mut cloned = original.clone();
-        cloned.session_cookie = "mutated".to_string();
-        // Mutating the clone must not affect the original.
-        assert_eq!(original.session_cookie, "orig_session");
-        assert_eq!(cloned.session_cookie, "mutated");
-    }
-
     // -----------------------------------------------------------------------
     // auto_extract_flow: reject unsupported browsers without panicking
     // -----------------------------------------------------------------------

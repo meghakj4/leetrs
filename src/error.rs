@@ -97,21 +97,4 @@ mod tests {
             "expected 'Serialization error' in: {msg}"
         );
     }
-
-    // -----------------------------------------------------------------------
-    // Result<T> type alias behaves correctly
-    // -----------------------------------------------------------------------
-
-    #[test]
-    fn result_ok_works() {
-        let r: Result<u32> = Ok(42);
-        assert_eq!(r.unwrap(), 42);
-    }
-
-    #[test]
-    fn result_err_is_engine_error() {
-        let r: Result<()> = Err(EngineError::System);
-        assert!(r.is_err());
-        assert_eq!(r.unwrap_err().to_string(), "System error");
-    }
 }

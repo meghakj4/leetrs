@@ -60,6 +60,12 @@ impl Screen for HelpScreen {
                 help_area.width,
             ),
             create_split_item(
+                "Ctrl+d / Ctrl+u",
+                "Scroll down / up 10 items (list & topic filter)",
+                Color::Green,
+                help_area.width,
+            ),
+            create_split_item(
                 "Enter",
                 "Select the highlighted problem",
                 Color::Green,
