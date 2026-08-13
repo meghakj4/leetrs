@@ -148,7 +148,9 @@ pub async fn run_tui(
 
         match result {
             Ok(Some(problem)) => {
-                if let Err(e) = pick_and_open_editor(&picker, &Identifier::String(problem), language).await {
+                if let Err(e) =
+                    pick_and_open_editor(&picker, &Identifier::String(problem), language).await
+                {
                     app.popup_message = Some(e);
                 }
                 app.selection_screen.input_mode = InputMode::Normal;
@@ -257,7 +259,9 @@ pub async fn pick_and_open_editor(
         .await
         .map_err(|e| format!("{}", e))?;
 
-    let config = CONFIG.get().ok_or_else(|| "Failed to initialise config".to_string())?;
+    let config = CONFIG
+        .get()
+        .ok_or_else(|| "Failed to initialise config".to_string())?;
     let editor = config.editor.as_deref().unwrap_or("nvim");
     let show_description = config.show_description.unwrap_or(true);
 
@@ -282,11 +286,10 @@ pub async fn pick_and_open_editor(
             println!("\n👋 {} closed.", editor);
             Ok(())
         }
-        Ok(exit_status) => {
-            Err(format!("{} exited with an error code: {}", editor, exit_status))
-        }
-        Err(e) => {
-            Err(format!("Failed to launch {}: {}", editor, e))
-        }
+        Ok(exit_status) => Err(format!(
+            "{} exited with an error code: {}",
+            editor, exit_status
+        )),
+        Err(e) => Err(format!("Failed to launch {}: {}", editor, e)),
     }
 }

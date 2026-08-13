@@ -46,7 +46,12 @@ pub fn render_problem_row(p: &ProblemSummary) -> Row<'static> {
     let premium_text = if p.is_paid { "󰌾" } else { "" };
     let premium_cell = Cell::from(premium_text).style(Style::default().fg(Color::Red));
 
-    let topics_text = p.topics.first().map(|t| t.as_str()).unwrap_or("").to_string();
+    let topics_text = p
+        .topics
+        .first()
+        .map(|t| t.as_str())
+        .unwrap_or("")
+        .to_string();
     let topics_cell = Cell::from(topics_text);
 
     Row::new(vec![

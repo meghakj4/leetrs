@@ -46,7 +46,11 @@ impl TopicFilterState {
             return;
         }
         let i = self.cursor();
-        let next = if i >= self.all_topics.len() - 1 { 0 } else { i + 1 };
+        let next = if i >= self.all_topics.len() - 1 {
+            0
+        } else {
+            i + 1
+        };
         self.list_state.select(Some(next));
     }
 
@@ -55,7 +59,11 @@ impl TopicFilterState {
             return;
         }
         let i = self.cursor();
-        let prev = if i == 0 { self.all_topics.len() - 1 } else { i - 1 };
+        let prev = if i == 0 {
+            self.all_topics.len() - 1
+        } else {
+            i - 1
+        };
         self.list_state.select(Some(prev));
     }
 

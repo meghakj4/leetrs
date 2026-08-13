@@ -3,12 +3,7 @@
 //! Each public function here corresponds to one CLI sub-command. Separating
 //! them from `main.rs` keeps the binary entry-point thin (CLI parsing only)
 //! and makes the handlers independently testable.
-use std::{
-    fs,
-    io,
-    process::Command,
-    rc::Rc,
-};
+use std::{fs, io, process::Command, rc::Rc};
 
 use clap::CommandFactory;
 use clap_complete::{
@@ -31,8 +26,8 @@ use crate::{
 pub async fn make_picker() -> std::result::Result<Picker, String> {
     let creds = LeetCodeCredentials::load()
         .ok_or_else(|| "Not authenticated. Please run `leetrs auth` first.".to_string())?;
-    let client = LeetCodeClient::new(creds)
-        .map_err(|e| format!("Failed to initialize client: {}", e))?;
+    let client =
+        LeetCodeClient::new(creds).map_err(|e| format!("Failed to initialize client: {}", e))?;
     Ok(Picker::new(client))
 }
 
@@ -108,14 +103,14 @@ pub async fn handle_pick(
 }
 
 /// Runs the solution against example test cases without recording a submission.
-pub async fn handle_test(file: &String) -> std::result::Result<(), String> {
+pub async fn handle_test(file: &str) -> std::result::Result<(), String> {
     let picker = make_picker().await?;
     picker.test_submit(file).await;
     Ok(())
 }
 
 /// Submits the solution to LeetCode for full judging.
-pub async fn handle_submit(file: &String) -> std::result::Result<(), String> {
+pub async fn handle_submit(file: &str) -> std::result::Result<(), String> {
     let picker = make_picker().await?;
     picker.submit(file).await;
     Ok(())
@@ -183,7 +178,9 @@ pub async fn pick_and_open(
         .map_err(|e| format!("{}", e))?;
 
     if !preview {
-        let config = CONFIG.get().ok_or_else(|| "Failed to initialise config".to_string())?;
+        let config = CONFIG
+            .get()
+            .ok_or_else(|| "Failed to initialise config".to_string())?;
         let editor = config.editor.as_deref().unwrap_or("nvim");
         let show_description = config.show_description.unwrap_or(true);
 
@@ -218,7 +215,8 @@ pub async fn pick_and_open(
             }
         }
     } else {
-        let content = fs::read_to_string(desc).map_err(|e| format!("Failed to read description file: {}", e))?;
+        let content = fs::read_to_string(desc)
+            .map_err(|e| format!("Failed to read description file: {}", e))?;
         print!("{}", content);
     }
     Ok(())

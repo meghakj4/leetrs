@@ -20,7 +20,7 @@ impl ProblemTable {
         self.len = len;
         if len == 0 {
             self.state.select(None);
-        } else if self.state.selected().map_or(true, |i| i >= len) {
+        } else if self.state.selected().is_none_or(|i| i >= len) {
             self.state.select(Some(0));
         }
     }
@@ -31,7 +31,11 @@ impl ProblemTable {
         }
         let i = match self.state.selected() {
             Some(i) => {
-                if i >= self.len - 1 { 0 } else { i + 1 }
+                if i >= self.len - 1 {
+                    0
+                } else {
+                    i + 1
+                }
             }
             None => 0,
         };
@@ -44,7 +48,11 @@ impl ProblemTable {
         }
         let i = match self.state.selected() {
             Some(i) => {
-                if i == 0 { self.len - 1 } else { i - 1 }
+                if i == 0 {
+                    self.len - 1
+                } else {
+                    i - 1
+                }
             }
             None => 0,
         };

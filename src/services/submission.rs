@@ -85,10 +85,7 @@ impl SubmissionService {
     /// Reads the source file, derives the problem slug and language from the
     /// filename/extension, fetches the full question metadata, and returns the
     /// tuple `(code, slug, language, question)` ready for submission.
-    async fn read_and_resolve(
-        &self,
-        file: &str,
-    ) -> Result<(String, String, Language, Question)> {
+    async fn read_and_resolve(&self, file: &str) -> Result<(String, String, Language, Question)> {
         let code = std::fs::read_to_string(file).map_err(EngineError::Io)?;
 
         let path = Path::new(file);
@@ -105,16 +102,12 @@ impl SubmissionService {
         );
 
         println!("🔍 Resolving ID for '{}'...", slug);
-        let question = self
-            .client
-            .get_question_by_slug(&slug)
-            .await
-            .map_err(|e| {
-                EngineError::Other(format!(
-                    "Failed to fetch question. Does the filename match the problem slug? {}",
-                    e
-                ))
-            })?;
+        let question = self.client.get_question_by_slug(&slug).await.map_err(|e| {
+            EngineError::Other(format!(
+                "Failed to fetch question. Does the filename match the problem slug? {}",
+                e
+            ))
+        })?;
 
         Ok((code, slug, language, question))
     }

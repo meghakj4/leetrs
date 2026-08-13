@@ -22,11 +22,8 @@ use crate::{
         renderers::render_problem_row,
         screen::Screen,
         widgets::{
-            filter_state::FilterState,
-            premium_gate::PremiumGate,
-            problem_table::ProblemTable,
-            search_bar::SearchBar,
-            topic_overlay::render_topic_overlay,
+            filter_state::FilterState, premium_gate::PremiumGate, problem_table::ProblemTable,
+            search_bar::SearchBar, topic_overlay::render_topic_overlay,
         },
     },
 };
@@ -84,9 +81,7 @@ impl Screen for SelectionScreen {
         let table_title = self.build_table_title();
         let header_cells = ["ID", "Name", "Acceptance", "Topics", "Premium?", "Done"]
             .into_iter()
-            .map(|h| {
-                ratatui::widgets::Cell::from(h).style(Style::default().fg(Color::Yellow))
-            });
+            .map(|h| ratatui::widgets::Cell::from(h).style(Style::default().fg(Color::Yellow)));
         let header = ratatui::widgets::Row::new(header_cells).style(Style::default());
 
         let rows: Vec<_> = self
@@ -180,7 +175,11 @@ impl Screen for SelectionScreen {
         frame.render_widget(topic_status_widget, bottom_bar[2]);
 
         if let InputMode::TopicFilter = self.input_mode {
-            render_topic_overlay(frame, &mut self.filters.topics, self.filtered_problems.len());
+            render_topic_overlay(
+                frame,
+                &mut self.filters.topics,
+                self.filtered_problems.len(),
+            );
         }
     }
 

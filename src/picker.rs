@@ -10,8 +10,8 @@ use crate::format::format_result;
 use crate::models::{Identifier, ProblemSummary, UserDetail};
 use crate::services::submission::SubmissionService;
 use crate::{client::LeetCodeClient, models::Language};
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 /// Orchestrates problem fetching, file generation, submission, and caching.
 ///
@@ -87,10 +87,9 @@ impl Picker {
         let snippet = match snippet {
             Some(s) => s,
             None => {
-                let snippet = question
-                    .code_snippets
-                    .first()
-                    .ok_or_else(|| EngineError::Other("LeetCode problem has no code snippets".to_string()))?;
+                let snippet = question.code_snippets.first().ok_or_else(|| {
+                    EngineError::Other("LeetCode problem has no code snippets".to_string())
+                })?;
                 language = Language::from(snippet.lang_slug.clone());
                 snippet
             }
@@ -124,7 +123,7 @@ impl Picker {
 
     /// Runs the solution file against the problem's built-in example test cases
     /// and prints the result, but **does not** record it as an official submission.
-    pub async fn test_submit(&self, file: &String) {
+    pub async fn test_submit(&self, file: &str) {
         let service = SubmissionService::new(self.client.clone());
         match service.submit_or_test(file, true).await {
             Ok(result) => format_result(&result),
@@ -134,7 +133,7 @@ impl Picker {
 
     /// Submits the solution file to LeetCode for full judging and prints the
     /// verdict, test-case counts, and performance percentiles.
-    pub async fn submit(&self, file: &String) {
+    pub async fn submit(&self, file: &str) {
         let service = SubmissionService::new(self.client.clone());
         match service.submit_or_test(file, false).await {
             Ok(result) => format_result(&result),

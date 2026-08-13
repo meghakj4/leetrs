@@ -54,7 +54,7 @@ impl LeetCodeCredentials {
         }
 
         let json = serde_json::to_string_pretty(self)?;
-        println!("writing to {:?}", &config_path);
+        println!("writing to {:?}", config_path);
         fs::write(config_path, json)?;
         Ok(())
     }

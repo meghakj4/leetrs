@@ -23,10 +23,8 @@ impl CacheService {
         let project_dirs = ProjectDirs::from("com", "shadowmkj", "leetrs")
             .expect("Failed to resolve OS data directory");
         let data_dir = project_dirs.data_dir().to_path_buf();
-        if !data_dir.exists() {
-            if let Err(e) = fs::create_dir_all(&data_dir) {
-                eprintln!("❌ Failed to create data directory: {}", e);
-            }
+        if let Err(e) = fs::create_dir_all(&data_dir) {
+            eprintln!("❌ Failed to create data directory: {}", e);
         }
         Self { data_dir }
     }

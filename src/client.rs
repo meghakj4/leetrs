@@ -592,7 +592,8 @@ impl LeetCodeApi for LeetCodeClient {
     fn check_submission(
         &self,
         submission_id: u64,
-    ) -> impl std::future::Future<Output = Result<crate::models::SubmissionCheckResult>> + Send {
+    ) -> impl std::future::Future<Output = Result<crate::models::SubmissionCheckResult>> + Send
+    {
         LeetCodeClient::check_submission(self, submission_id)
     }
 
