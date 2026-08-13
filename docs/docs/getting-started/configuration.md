@@ -19,7 +19,7 @@ The configuration file is stored in standard system directories according to XDG
 | **Linux / macOS** | `~/.config/leetrs/config.toml` |
 | **Windows** | `%APPDATA%\leetrs\config.toml` |
 
-:::note Automatic File Creation
+:::note[Automatic File Creation]
 If `config.toml` does not exist when `leetrs` is invoked, `leetrs` creates the directory and populates `config.toml` with default values automatically.
 :::
 

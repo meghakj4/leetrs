@@ -31,11 +31,14 @@ If you have Rust and Cargo installed, run:
 cargo install leetrs
 ```
 
-:::tip PATH Verification
+:::tip[PATH Verification]
+
 Ensure `~/.cargo/bin` is in your system `$PATH`:
+
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
+
 :::
 
 ---

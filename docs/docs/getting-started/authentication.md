@@ -41,7 +41,7 @@ If you are already logged into LeetCode in **Chrome** or **Firefox**, select:
 
 `leetrs` uses the [`rookie`](https://crates.io/crates/rookie) crate to decrypt and extract active browser cookies without requiring browser extensions or external helpers.
 
-:::tip Prerequisites for Automatic Extraction
+:::tip[Prerequisites for Automatic Extraction]
 - You must be logged into [leetcode.com](https://leetcode.com) in the chosen browser.
 - Close the browser if keyrings/databases are locked by exclusive file locks on Linux.
 :::

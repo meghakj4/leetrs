@@ -58,6 +58,6 @@ class Solution:
 SELECT * FROM Users;
 ```
 
-:::important Preserving Metadata Headers
+:::warning[Preserving Metadata Headers]
 Do not remove or alter the header line (`// id=... slug=... lang=...`). `leetrs test` and `leetrs submit` rely on this comment header to identify which LeetCode problem and language to submit to!
 :::

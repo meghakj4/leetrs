@@ -288,7 +288,6 @@ When navigating the interactive TUI (`leetrs tui`), the following keybindings ar
 
 <details>
 <summary><b>Automatic cookie extraction fails during <code>leetrs auth</code></b></summary>
-<br>
 
 - Ensure you are logged into [leetcode.com](https://leetcode.com) in your selected browser (Chrome or Firefox).
 - If using containerized browser packages (such as Snap or Flatpak on Linux) or custom profile paths, select **"Paste tokens manually"** during `leetrs auth`.
@@ -297,7 +296,6 @@ When navigating the interactive TUI (`leetrs tui`), the following keybindings ar
 
 <details>
 <summary><b>Neovim fails to launch after <code>leetrs pick</code></b></summary>
-<br>
 
 - Verify that Neovim is installed and accessible as `nvim` in your system `$PATH`:
   ```bash
@@ -308,7 +306,6 @@ When navigating the interactive TUI (`leetrs tui`), the following keybindings ar
 
 <details>
 <summary><b>How do I refresh cached problem lists or user profile data?</b></summary>
-<br>
 
 - `leetrs` caches problem metadata locally in your user data directory (`~/.local/share/leetrs/` or OS equivalent).
 - If problem cache becomes corrupted, delete the cache file to trigger a fresh sync on next run:
