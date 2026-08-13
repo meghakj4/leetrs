@@ -54,7 +54,7 @@ If you are using containerized browsers (Snap / Flatpak), custom profile paths, 
 
 1. Select `Paste tokens manually`.
 2. Open [leetcode.com](https://leetcode.com) in your browser and open **Developer Tools** (`F12` or `Cmd+Option+I`).
-3. Navigate to **Application** (Chrome) or **Storage** (Firefox) $\rightarrow$ **Cookies** $\rightarrow$ `https://leetcode.com`.
+3. Navigate to **Application** (Chrome) or **Storage** (Firefox) → **Cookies** → `https://leetcode.com`.
 4. Copy the values of:
    - `LEETCODE_SESSION`
    - `csrftoken`

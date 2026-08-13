@@ -16,9 +16,9 @@ The submission service (`src/services/submission.rs`) manages non-blocking async
 stateDiagram-v2
     [*] --> Submitting: POST interpret_solution or submit
     Submitting --> Polling: Receive interpret_id / submission_id
-    Polling --> Pending: GET check/ -> PENDING / STARTED
+    Polling --> Pending: GET check/ (returns PENDING / STARTED)
     Pending --> Polling: Sleep 500ms
-    Polling --> Success: GET check/ -> SUCCESS
+    Polling --> Success: GET check/ (returns SUCCESS)
     Success --> [*]: Render Results / Percentiles / Error Logs
 ```
 

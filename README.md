@@ -5,9 +5,9 @@
 [![Rust](https://img.shields.io/badge/Rust-1.70%2B-blue.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![Crates.io](https://img.shields.io/crates/v/leetrs.svg?style=flat-square&logo=rust)](https://crates.io/crates/leetrs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Beta-orange.svg?style=flat-square)]()
+[![Status](https://img.shields.io/badge/Status-Beta-orange.svg?style=flat-square)](https://github.com/shadowmkj/leetrs)
 [![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-green.svg?style=flat-square&logo=neovim)](https://neovim.io/)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg?style=flat-square)]()
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg?style=flat-square)](https://github.com/shadowmkj/leetrs)
 
 **A blazing-fast, Rust-powered CLI engine and TUI for solving LeetCode problems natively in Neovim.**
 
@@ -21,7 +21,7 @@
 > [!WARNING]
 >
 > This is still a **work in progress**. Breaking changes to commands and configuration
-> might happen
+> might happen.
 
 ## 📋 Table of Contents
 
@@ -258,10 +258,10 @@ When navigating the interactive TUI (`leetrs tui`), the following keybindings ar
 | Keybinding | Action |
 |---|---|
 | `/` | Focus search bar (fuzzy search by title / ID) |
-| `1`| Easy Problems|
-| `2` | Medium Problems|
-| `3` | Hard Problems|
-| `4` | Any difficulty|
+| `1` | Easy Problems |
+| `2` | Medium Problems |
+| `3` | Hard Problems |
+| `4` | Any difficulty |
 | `t` | Open topic overlay filter modal |
 | `Tab` | Cycle focus between UI components |
 | `?` | Toggle interactive Help overlay |
@@ -325,7 +325,7 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for de
 
 1. Fork the Repository
 2. Create your Feature Branch (`git checkout -b feature/amazing-feature`)
-3. Commit your Changes (`git commit -m 'feat: add amazing feature'`)
+3. Commit your Changes (`git commit -m "feat: add amazing feature"`)
 4. Push to the Branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
@@ -333,6 +333,6 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for de
 
 ## 📄 License
 
-Distributed under the MIT License. See [`LICENSE`](LICENSE) for more details.
+Distributed under the MIT License. See [LICENSE](LICENSE) for more details.
 
 Developed with ❤️ by [shadowmkj](https://github.com/shadowmkj).

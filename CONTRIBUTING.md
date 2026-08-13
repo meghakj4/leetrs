@@ -18,11 +18,11 @@ Contributions of all kinds are welcome and appreciated!
 ## Making a contribution
 
 1. Fork the repository
-2. Create a new branch [e.g `git checkout -b feat/your-feature-name`]
+2. Create a new branch (e.g., `git checkout -b feat/your-feature-name`)
 3. Write code
 4. Use `cargo fmt --all` to format the code
 5. Run `cargo clippy --all --release` and fix any warnings
-6. Commit your chages (the commit messages should follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)),
+6. Commit your changes (the commit messages should follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)),
    also if your commit targets a specific issue you should reference that in the
    description
 7. Push to your fork
