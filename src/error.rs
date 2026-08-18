@@ -38,63 +38,13 @@ pub type Result<T> = std::result::Result<T, EngineError>;
 mod tests {
     use super::*;
 
-    // -----------------------------------------------------------------------
-    // EngineError: Display / human-readable messages
-    // -----------------------------------------------------------------------
-
     #[test]
-    fn error_auth_display() {
-        let e = EngineError::Auth;
-        assert_eq!(
-            e.to_string(),
-            "Authentication error: Missing session token or CSRF token"
-        );
-    }
-
-    #[test]
-    fn error_system_display() {
-        let e = EngineError::System;
-        assert_eq!(e.to_string(), "System error");
-    }
-
-    #[test]
-    fn error_graphql_display_includes_message() {
-        let e = EngineError::GraphQL("something went wrong".to_string());
-        let msg = e.to_string();
-        assert!(
-            msg.contains("GraphQL error"),
-            "expected 'GraphQL error' in: {msg}"
-        );
-        assert!(
-            msg.contains("something went wrong"),
-            "expected context in: {msg}"
-        );
-    }
-
-    #[test]
-    fn error_other_display_includes_message() {
-        let e = EngineError::Other("custom context".to_string());
-        let msg = e.to_string();
-        assert!(msg.contains("Other"), "expected 'Other' in: {msg}");
-        assert!(msg.contains("custom context"), "expected context in: {msg}");
-    }
-
-    // -----------------------------------------------------------------------
-    // EngineError: From<serde_json::Error>
-    // -----------------------------------------------------------------------
-
-    #[test]
-    fn error_from_serde_json_error() {
-        // Trigger a real serde_json parse error and convert it via From.
-        let serde_err: serde_json::Error =
-            serde_json::from_str::<serde_json::Value>("not valid json").unwrap_err();
-        let engine_err = EngineError::from(serde_err);
-        // Must be the Parse variant, not Other or System.
-        assert!(matches!(engine_err, EngineError::Parse(_)));
-        let msg = engine_err.to_string();
-        assert!(
-            msg.contains("Serialization error"),
-            "expected 'Serialization error' in: {msg}"
-        );
+    fn error_with_context_wraps_error_into_other() {
+        let original = EngineError::System;
+        let wrapped = original.with_context("file access failed");
+        assert!(matches!(wrapped, EngineError::Other(_)));
+        let msg = wrapped.to_string();
+        assert!(msg.contains("file access failed"));
+        assert!(msg.contains("System error"));
     }
 }

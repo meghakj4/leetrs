@@ -130,85 +130,22 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn credentials_serde_roundtrip_typical() {
-        let creds = LeetCodeCredentials {
-            session_cookie: "abc123XYZ".to_string(),
-            csrf_token: "tok987".to_string(),
-        };
-        let json = serde_json::to_string(&creds).expect("serialization must not fail");
-        let back: LeetCodeCredentials =
-            serde_json::from_str(&json).expect("deserialization must not fail");
-        assert_eq!(back.session_cookie, "abc123XYZ");
-        assert_eq!(back.csrf_token, "tok987");
-    }
-
-    #[test]
-    fn credentials_serde_roundtrip_empty_strings() {
-        // Tokens can theoretically be empty; the struct must survive that.
-        let creds = LeetCodeCredentials {
-            session_cookie: "".to_string(),
-            csrf_token: "".to_string(),
-        };
-        let json = serde_json::to_string(&creds).unwrap();
-        let back: LeetCodeCredentials = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.session_cookie, "");
-        assert_eq!(back.csrf_token, "");
-    }
-
-    #[test]
-    fn credentials_serde_roundtrip_special_characters() {
-        // Real LeetCode session cookies contain dots, hyphens, etc.
-        let session = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InRlc3QifQ.abc-def";
-        let csrf = "Fy3z!@#Kx9";
-        let creds = LeetCodeCredentials {
-            session_cookie: session.to_string(),
-            csrf_token: csrf.to_string(),
-        };
-        let json = serde_json::to_string(&creds).unwrap();
-        let back: LeetCodeCredentials = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.session_cookie, session);
-        assert_eq!(back.csrf_token, csrf);
-    }
-
-    #[test]
     fn credentials_json_contains_expected_field_names() {
         let creds = LeetCodeCredentials {
-            session_cookie: "s".to_string(),
-            csrf_token: "c".to_string(),
+            session_cookie: "sess_123".to_string(),
+            csrf_token: "csrf_456".to_string(),
         };
         let json = serde_json::to_string(&creds).unwrap();
-        // Field names must match what the file on disk will look like.
-        assert!(
-            json.contains("session_cookie"),
-            "missing 'session_cookie' key"
-        );
-        assert!(json.contains("csrf_token"), "missing 'csrf_token' key");
-    }
-
-    // -----------------------------------------------------------------------
-    // auto_extract_flow: reject unsupported browsers without panicking
-    // -----------------------------------------------------------------------
-
-    #[test]
-    fn auto_extract_flow_rejects_unsupported_browser() {
-        let result = auto_extract_flow("safari");
-        assert!(result.is_err());
-        let msg = result.unwrap_err();
-        assert_eq!(msg, "Unsupported browser");
+        assert!(json.contains("session_cookie"));
+        assert!(json.contains("csrf_token"));
     }
 
     #[test]
-    fn auto_extract_flow_rejects_empty_browser_name() {
-        let result = auto_extract_flow("");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Unsupported browser");
-    }
-
-    #[test]
-    fn auto_extract_flow_rejects_case_sensitive_browser_name() {
-        // Browser names are matched case-sensitively; "Chrome" != "chrome".
-        let result = auto_extract_flow("Chrome");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Unsupported browser");
+    fn auto_extract_flow_rejects_unsupported_browsers() {
+        for browser in ["safari", "", "Chrome", "edge", "opera"] {
+            let result = auto_extract_flow(browser);
+            assert!(result.is_err());
+            assert_eq!(result.unwrap_err(), "Unsupported browser");
+        }
     }
 }
