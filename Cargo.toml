@@ -1,8 +1,20 @@
 [package]
 name = "leetrs"
 version = "1.0.20"
-edition = "2024"
+edition.workspace = true
 description = "A command-line tool to interact with LeetCode."
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[workspace]
+members = [
+    ".",
+    "xtask",
+]
+
+[workspace.package]
+edition = "2024"
 license = "MIT"
 repository = "https://github.com/shadowmkj/leetrs"
 homepage = "https://github.com/shadowmkj/leetrs"
