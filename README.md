@@ -8,6 +8,7 @@
 [![Status](https://img.shields.io/badge/Status-Beta-orange.svg?style=flat-square)](https://github.com/shadowmkj/leetrs)
 [![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-green.svg?style=flat-square&logo=neovim)](https://neovim.io/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg?style=flat-square)](https://github.com/shadowmkj/leetrs)
+[![Codecov](https://img.shields.io/codecov/c/github/shadowmkj/leetrs?style=flat-square&logo=codecov)](https://codecov.io/gh/shadowmkj/leetrs)
 [![Built with Ratatui](https://ratatui.rs/built-with-ratatui/badge.svg)](https://ratatui.rs)
 
 **A blazing-fast, Rust-powered CLI engine and TUI for solving LeetCode problems natively in Neovim.**
