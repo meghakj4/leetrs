@@ -2,20 +2,21 @@
 # https://git-cliff.org/docs/configuration
 
 [changelog]
+output = "CHANGELOG.md"
 # A Tera template to be rendered for each release in the changelog.
 # See https://keats.github.io/tera/docs/#introduction
 body = """
 {% if version %}\
-    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+    ## [{{ version }}](https://github.com/shadowmkj/leetrs/releases/tag/{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
 {% else %}\
-    ## [unreleased]
+    ## [unreleased](https://github.com/shadowmkj/leetrs)
 {% endif %}\
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | striptags | trim | upper_first }}
     {% for commit in commits %}
         - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
             {% if commit.breaking %}[**breaking**] {% endif %}\
-            {{ commit.message | upper_first }}\
+            {{ commit.message | upper_first }} - ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/shadowmkj/leetrs/commit/{{ commit.id }}))\
     {% endfor %}
 {% endfor %}
 """
@@ -24,14 +25,7 @@ trim = true
 # Render body even when there are no releases to process.
 render_always = true
 # An array of regex based postprocessors to modify the changelog.
-postprocessors = [
-  # Replace the placeholder <REPO> with a URL.
-  # { pattern = '<REPO>', replace = "https://github.com/orhun/git-cliff" },
-]
-# render body even when there are no releases to process
-# render_always = true
-# output file path
-# output = "test.md"
+postprocessors = []
 
 [git]
 # Parse commits according to the conventional commits specification.
@@ -46,11 +40,8 @@ require_conventional = false
 split_commits = false
 # An array of regex based parsers to modify commit messages prior to further processing.
 commit_preprocessors = [
-  # Replace issue numbers with link templates to be updated in `changelog.postprocessors`.
-  # { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](<REPO>/issues/${2}))"},
-  # Check spelling of the commit message using https://github.com/crate-ci/typos.
-  # If the spelling is incorrect, it will be fixed automatically.
-  # { pattern = '.*', replace_command = 'typos --write-changes -' },
+  # Replace PR numbers with markdown links to GitHub pull requests
+  { pattern = '\(#([0-9]+)\)', replace = "([#${1}](https://github.com/shadowmkj/leetrs/pull/${1}))" },
 ]
 # Prevent commits that are breaking from being excluded by commit parsers.
 protect_breaking_commits = false
@@ -91,3 +82,7 @@ topo_order_commits = true
 sort_commits = "oldest"
 # Process submodules commits
 recurse_submodules = false
+
+[remote.github]
+owner = "shadowmkj"
+repo = "leetrs"

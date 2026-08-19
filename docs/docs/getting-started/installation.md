@@ -64,7 +64,7 @@ brew update && brew upgrade leetrs
 Download and install pre-compiled release binaries directly without needing a Rust toolchain:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/shadowmkj/leetrs/releases/download/v1.0.18/leetrs-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/shadowmkj/leetrs/releases/download/v1.1.0/leetrs-installer.sh | sh
 ```
 
 ---
@@ -102,5 +102,5 @@ leetrs --version
 
 Expected output:
 ```text
-leetrs 1.0.20
+leetrs 1.1.0
 ```

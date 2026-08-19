@@ -29,7 +29,7 @@ sidebar_position: 1
 | Flag | Short | Description |
 |---|---|---|
 | `--help` | `-h` | Print help information for `leetrs` or any subcommand |
-| `--version` | `-V` | Print version information (`leetrs 1.0.20`) |
+| `--version` | `-V` | Print version information (`leetrs 1.1.0`) |
 
 ---
 

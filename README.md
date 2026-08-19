@@ -133,7 +133,7 @@ brew install shadowmkj/tap/leetrs
 Download and install pre-compiled binaries for your platform directly without requiring a Rust installation:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/shadowmkj/leetrs/releases/download/v1.0.18/leetrs-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/shadowmkj/leetrs/releases/download/v1.1.0/leetrs-installer.sh | sh
 ```
 
 ---
