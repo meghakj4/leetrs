@@ -9,6 +9,17 @@ updates:
       # Block all breaking (major) version updates
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+    groups:
+      # Automatically bundles non-breaking patch bumps into 1 PR
+      patch-updates:
+        update-types:
+          - "patch"
+
+      # Keep UI-related crates together
+      tui-crates:
+        patterns:
+          - "ratatui"
+          - "tui-input"
     commit-message:
       prefix: "chore"
       include: "scope"
