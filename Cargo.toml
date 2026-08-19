@@ -1,6 +1,6 @@
 [package]
 name = "leetrs"
-version = "1.0.20"
+version = "1.1.0"
 edition.workspace = true
 description = "A command-line tool to interact with LeetCode."
 homepage.workspace = true
