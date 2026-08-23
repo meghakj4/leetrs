@@ -16,7 +16,8 @@ body = """
         {% if loop.first %}
 ### 💥 Breaking Changes
         {% endif %}\
-        - {% if commit.scope %}*({{ commit.scope }})* {% endif %}{{ commit.message | upper_first }} - ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/shadowmkj/leetrs/commit/{{ commit.id }}))
+        - {% if commit.scope %}*({{ commit.scope }})* {% endif %}{{ commit.message | upper_first }} - ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/shadowmkj/leetrs/commit/{{ commit.id }}))\
+        {% if commit.remote.username %} (from [`@{{ commit.remote.username }}`](https://github.com/{{ commit.remote.username }})){% elif commit.author.name %} (from [`@{{ commit.author.name }}`](https://github.com/{{ commit.author.name }})){% endif %}
     {% endif %}\
 {% endfor %}\
 {% for group, commits in commits | group_by(attribute="group") %}
@@ -24,12 +25,13 @@ body = """
     {% for commit in commits %}
         - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
             {{ commit.message | upper_first }} - ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/shadowmkj/leetrs/commit/{{ commit.id }}))\
+            {% if commit.remote.username %} (from [`@{{ commit.remote.username }}`](https://github.com/{{ commit.remote.username }})){% elif commit.author.name %} (from [`@{{ commit.author.name }}`](https://github.com/{{ commit.author.name }})){% endif %}\
     {% endfor %}
 {% endfor %}\
 {% if github.contributors | filter(attribute="is_first_time", value=true) | length > 0 %}
 ### 👥 New Contributors
 {% for contributor in github.contributors | filter(attribute="is_first_time", value=true) %}
-- `@{{ contributor.username }}` made their first contribution{% if contributor.pr_number %} in [#{{ contributor.pr_number }}](https://github.com/shadowmkj/leetrs/pull/{{ contributor.pr_number }}){% endif %}
+- [`@{{ contributor.username }}`](https://github.com/{{ contributor.username }}) made their first contribution{% if contributor.pr_number %} in [#{{ contributor.pr_number }}](https://github.com/shadowmkj/leetrs/pull/{{ contributor.pr_number }}){% endif %}
 {% endfor %}
 {% endif %}
 """
